@@ -1,0 +1,8 @@
+variables:
+ PUBLISH_NUGET: "false"
+ PROJECT_FOLDER: GameWallet.Client
+
+include:
+ - project: ci/core-cicd
+   ref: main
+   file: nexcel.gitlab-ci.yml
