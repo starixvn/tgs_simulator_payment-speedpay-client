@@ -26,9 +26,6 @@ public class SpeedPayDepositSettings
     [JsonPropertyName("returnUrl")]
     public string ReturnUrl { get; set; } = default!;
 
-    [JsonPropertyName("notifyUrl")]
-    public string NotifyUrl { get; set; } = default!;
-
     [JsonPropertyName("memberCode")]
     public string MemberCode { get; set; } = default!;
 
