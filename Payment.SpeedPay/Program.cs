@@ -40,7 +40,7 @@ builder.Services
 
 builder.Services
     .AddSpeedPay(
-        options => builder.Configuration.GetSection("GameWallet").Bind(options),
+        options => builder.Configuration.GetSection("SpeedPay").Bind(options),
         clientBuilder => clientBuilder
             .ConfigureHttpClient((sp, http) =>
             {
@@ -71,20 +71,20 @@ builder.Services
         .ConfigureResolveConnection(sp => sp.GetRequiredKeyedService<NatsConnection>("NatQueue"))
         .AddProcessor(
             ProcessorTypes.DepositProcessorType,
-            "tgs.payment.gamewallet.deposit",
-            "tgs.payment.gamewallet.deposit")
+            "tgs.payment.speedpay.deposit",
+            "tgs.payment.speedpay.deposit")
         .AddProcessor(
             ProcessorTypes.WithdrawProcessorType,
-            "tgs.payment.gamewallet.withdraw",
-            "tgs.payment.gamewallet.withdraw")
+            "tgs.payment.speedpay.withdraw",
+            "tgs.payment.speedpay.withdraw")
         .AddHandler(
             ProcessorTypes.DepositTimeoutCheckHandlerType,
-            $"tgs.payment.gamewallet.deposit.schedule.reject",
-            $"tgs.payment.gamewallet.deposit.schedule.reject")
+            $"tgs.payment.speedpay.deposit.schedule.reject",
+            $"tgs.payment.speedpay.deposit.schedule.reject")
         .AddProcessor(
             ProcessorTypes.GetBalanceProcessorType,
-            "tgs.payment.gamewallet.balance",
-            "tgs.payment.gamewallet.balance"))
+            "tgs.payment.speedpay.balance",
+            "tgs.payment.speedpay.balance"))
     .AddNatsGlobPatternExchange("*");
 
 builder.Services
@@ -146,5 +146,5 @@ app.Use(async (context, next) =>
     }
 });
 
-SentrySdk.CaptureMessage($"Started result Tgs-GameWallet at {DateTime.Now} at {Environment.MachineName}");
+SentrySdk.CaptureMessage($"Started result SpeedPay-Payment at {DateTime.Now} at {Environment.MachineName}");
 app.Run();

@@ -9,10 +9,66 @@ namespace Payment.SpeedPay;
 
 public class SpeedPayClient(
     HttpClient httpClient,
+    SpeedPayHasher hasher,
     IOptions<SpeedPayOptions> optionsAccessor,
     ILogger<SpeedPayClient> logger)
 {
     private readonly SpeedPayOptions _options = optionsAccessor.Value;
+
+    public async ValueTask<JsonNode> DepositAsync(Dictionary<string, object> content, CancellationToken cancellationToken = default)
+    {
+        var keysIgnore = new HashSet<string> { "merchantNo", "version", "key" };
+
+        var param = content.Where(x=> !keysIgnore.Contains(x.Key)).ToDictionary();
+        var requestValue = hasher.EncodeBase64(JsonSerializer.Serialize(param));
+        content["request"] = requestValue;
+
+        var keysHash = new string[] { "merchantNo", "request", "version", "key" };
+        var contentToHash = string.Join("&", keysHash.Select(x => $"{x}:{content[x]}"));
+        var sign = hasher.ComputeMd5(contentToHash);
+
+        var formContent = new Dictionary<string, string>
+        {
+            ["version"] = (string)content["version"],
+            ["merchantNo"] = (string)content["merchantNo"],
+            ["signMsg"] = sign,
+            ["request"] = requestValue
+
+        };
+        var request = new HttpRequestMessage(HttpMethod.Post, "qrh5")
+        {
+            Content = new FormUrlEncodedContent
+            (
+                formContent
+            )
+        };
+
+        var response = await httpClient
+            .SendAsync(request, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        var rawResponseContent = hasher.DecodeBase64(body);
+
+        var nodeBody = JsonNode.Parse(body) ?? throw new ApiFailException($"Deposit response {body} can't read.");
+
+        logger.LogInformation("SpeedPay Deposit Body:{body}", nodeBody);
+
+        if (nodeBody["resCode"]!.GetValue<string>() != "000")
+            throw new ApiFailException($"Error in Payment Provider with status {nodeBody["resMsg"]!.GetValue<string>()}");
+        var responseContent = hasher.DecodeBase64(nodeBody["response"]!.GetValue<string>());
+        var nodeResponse = JsonNode.Parse(responseContent) ?? throw new ApiFailException($"Deposit response message {responseContent} can't read.");
+
+        logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
+
+        if (nodeResponse["code"]!.GetValue<string>() != "0000")
+            throw new ApiFailException($"Error in Payment Provider with status {nodeBody["msg"]!.GetValue<string>()}");
+
+        return nodeResponse;
+    }
 
     public async ValueTask<JsonNode> WithdrawAsync(Dictionary<string,string> content, CancellationToken cancellationToken = default)
     {   

@@ -22,6 +22,20 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
 
     }
 
+    public string EncodeBase64(string content)
+    {
+        _logger.LogInformation("EncodeBase64: {plainText}", content);
+
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(content));
+    }
+
+    public string DecodeBase64(string content)
+    {
+        _logger.LogInformation("EncodeBase64: {plainText}", content);
+
+        return Encoding.UTF8.GetString(Convert.FromBase64String(content));
+    }
+
     public string EncodeParam(string content)
     {
         _logger.LogTrace("FullText: {plainText}", content);

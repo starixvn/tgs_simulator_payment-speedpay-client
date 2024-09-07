@@ -53,7 +53,7 @@ public class DepositController(ILogger<DepositController> logger,
             return "fail";
         }
 
-        var hash = hasher.ComputeMd5(string.Join("", keysHash.Append(depositForm!.ApplyInfo!.Settings.MerchantSecurityCode)));
+        var hash = hasher.ComputeMd5(string.Join("", keysHash.Append(depositForm!.ApplyInfo!.Settings.Key)));
 
         logger.LogInformation("Compute hash: {hash}, sign: {sign}", hash, paymentReturn.Key);
 

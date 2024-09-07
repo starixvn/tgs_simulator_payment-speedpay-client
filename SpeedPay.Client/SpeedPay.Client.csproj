@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
 	  <RootNamespace>Payment.SpeedPay.Client</RootNamespace>
 	  <SqlQueryToolsConnectionString />
-	  <Version>0.0.6</Version>
+	  <Version>0.0.1</Version>
 	  <Authors>Lumi</Authors>
 	  <Company>Lumi</Company>
 	  <PackageId>Payment.SpeedPay.Client</PackageId>

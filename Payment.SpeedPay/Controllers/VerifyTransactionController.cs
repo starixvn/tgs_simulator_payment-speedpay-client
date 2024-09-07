@@ -29,7 +29,7 @@ public class VerifyTransactionController(ILogger<VerifyTransactionController> lo
             return BadRequest();
         }
 
-        string[] keysHash = [requestData.Merchant, requestData.Reference, requestData.Amount, withdrawForm!.ApplyInfo!.Settings.MerchantSecurityCode];
+        string[] keysHash = [requestData.Merchant, requestData.Reference, requestData.Amount, withdrawForm!.ApplyInfo!.Settings.Key];
         var hash = hasher.ComputeMd5(string.Join("", keysHash));
 
         if (hash != requestData.Sign)

@@ -7,19 +7,19 @@ FROM hub.lumigame.com/base/dotnet/core/sdk:8.0-alpine AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["nuget.config", "."]
-COPY ["Payment.GameWallet/Payment.GameWallet.csproj", "Payment.GameWallet/"]
-COPY ["GameWallet.Core/GameWallet.Core.csproj", "GameWallet.Core/"]
-COPY ["GameWallet.Client/GameWallet.Client.csproj", "GameWallet.Client/"]
-RUN dotnet restore "./Payment.GameWallet/./Payment.GameWallet.csproj"
+COPY ["Payment.SpeedPay/Payment.SpeedPay.csproj", "Payment.SpeedPay/"]
+COPY ["SpeedPay.Core/SpeedPay.Core.csproj", "SpeedPay.Core/"]
+COPY ["SpeedPay.Client/SpeedPay.Client.csproj", "SpeedPay.Client/"]
+RUN dotnet restore "./Payment.SpeedPay/./Payment.SpeedPay.csproj"
 COPY . .
-WORKDIR "/src/Payment.GameWallet"
-RUN dotnet build "./Payment.GameWallet.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/Payment.SpeedPay"
+RUN dotnet build "./Payment.SpeedPay.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Payment.GameWallet.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Payment.SpeedPay.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "Payment.GameWallet.dll"]
+ENTRYPOINT ["dotnet", "Payment.SpeedPay.dll"]

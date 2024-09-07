@@ -1,6 +1,6 @@
 variables:
- PUBLISH_NUGET: "false"
- PROJECT_FOLDER: GameWallet.Client
+ PUBLISH_NUGET: "true"
+ PROJECT_FOLDER: SpeedPay.Client
 
 include:
  - project: ci/core-cicd

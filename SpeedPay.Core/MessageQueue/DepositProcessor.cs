@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Payment.SpeedPay.Client;
@@ -9,9 +10,9 @@ using Valhalla.MessageQueue;
 namespace Payment.SpeedPay.MessageQueue;
 
 internal class DepositProcessor(
-    SpeedPayHasher hasher,
     IPaymentClient paymentClient,
     TimeProvider timeProvider,
+    SpeedPayClient speedPayClient,
     ILogger<DepositProcessor> logger,
     IOptions<SpeedPayOptions> optionsAccessor)
     : IMessageProcessor<DepositRequest, DepositResponse>
@@ -24,54 +25,41 @@ internal class DepositProcessor(
         IEnumerable<MessageHeaderValue>? headerValues,
         CancellationToken cancellationToken = default)
     {
-        var settings = JsonSerializer.Deserialize<SpeedPayDepositSettings>(
+        var applyInfoFromData = JsonSerializer.Deserialize<Dictionary<string, object>>(
             data.ApplyInfo,
             SpeedPayUtility.SerializerOptions)!;
 
         var datetime = timeProvider.GetUtcNow();
 
-        var dict = new Dictionary<string, string>
-        {
-            ["m"]= settings.MerchantCode,
-            ["c1"]=settings.CurrencyCode,
-            ["b"]=settings.BankCode,
-            ["c2"]= settings.Customer,
-            ["r"]=settings.Reference.ToString(),
-            ["a"]= decimal.Parse(data.Amount).ToString("0.##"),
-            ["n"]="Depsoit For Player",
-            ["su"]=settings.SuccessUrl,
-            ["fu"]=settings.FailUrl,
-            ["d"]=datetime.ToString("yyyy-MM-dd HH:mm:sstt"),
-            ["c4"]= new Uri(_options.CallbackBaseUrl, "deposit/callback").ToString(),
-            ["l"]=settings.Language,
-            ["c3"]=settings.ClientIP,
-            ["mt"]=settings.Method,
-        };
+        applyInfoFromData["orderTime"] = datetime.ToString("yyyyMMddHHmmss");
+        applyInfoFromData["notifyUrl"] = new Uri(_options.PaymentApiUrl, "qrh5");
+        applyInfoFromData["amount"] = decimal.Parse(data.Amount).ToString("0.00");
 
-        logger.LogInformation("Request send: {dict}", dict);
-        string[] content = [dict["m"], dict["r"], dict["c2"], dict["a"], dict["c1"], datetime.ToString("yyyyMMddHHmmss"), settings.MerchantSecurityCode, dict["c3"]];
-        var key = hasher.ComputeMd5(string.Join("", content));
-        dict["k"] = key;
-        var param = hasher.EncodeParam(JsonSerializer.Serialize(dict));
-        logger.LogInformation("Param send: {params}", param);
+        logger.LogInformation("Request send: {applyInfo}", applyInfoFromData);
+
+        var response = await speedPayClient.DepositAsync(applyInfoFromData, cancellationToken).ConfigureAwait(false);
+
+        var settings = JsonSerializer.Deserialize<SpeedPayDepositSettings>(
+            data.ApplyInfo,
+            SpeedPayUtility.SerializerOptions)!;
 
         var applyInfo = new SpeedPayDepositApplyInfo(
             settings,
             new SpeedPayDepositResponse(
-                FormId: settings.Reference,
+                FormId: settings.OrderNo,
                 Amount: decimal.Parse(data.Amount),
-                RedirectUrl: new Uri(_options.DepositUrl,$"Home/2.0/Deposit/?parameter={param}")
+                RedirectUrl: new Uri(response["resultUrl"]!.GetValue<string>())
              ));
 
         await paymentClient.ScheduleAsync(
-            "tgs.payment.gamewallet.deposit.schedule.reject",
-            settings.Reference,
+            "tgs.payment.speedpay.deposit.schedule.reject",
+            settings.OrderNo,
             DateTime.UtcNow.AddMinutes(60D),
             cancellationToken).ConfigureAwait(false);
 
         return new DepositResponse
         {
-            Result = JsonSerializer.Serialize(applyInfo, SpeedPayUtility.SerializerOptions)
+            Result = JsonSerializer.Serialize(applyInfoFromData, SpeedPayUtility.SerializerOptions)
         };
     }
 }
