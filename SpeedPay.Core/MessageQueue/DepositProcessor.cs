@@ -11,7 +11,6 @@ namespace Payment.SpeedPay.MessageQueue;
 
 internal class DepositProcessor(
     IPaymentClient paymentClient,
-    TimeProvider timeProvider,
     SpeedPayClient speedPayClient,
     ILogger<DepositProcessor> logger,
     IOptions<SpeedPayOptions> optionsAccessor)
@@ -25,14 +24,14 @@ internal class DepositProcessor(
         IEnumerable<MessageHeaderValue>? headerValues,
         CancellationToken cancellationToken = default)
     {
-        var applyInfoFromData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+        var applyInfoFromData = JsonSerializer.Deserialize<Dictionary<string, string>>(
             data.ApplyInfo,
             SpeedPayUtility.SerializerOptions)!;
-
-        var datetime = timeProvider.GetUtcNow();
+        var timezone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+        var datetime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone!);
 
         applyInfoFromData["orderTime"] = datetime.ToString("yyyyMMddHHmmss");
-        applyInfoFromData["notifyUrl"] = new Uri(_options.PaymentApiUrl, "qrh5");
+        applyInfoFromData["notifyUrl"] = new Uri(_options.PaymentApiUrl, "qrh5").AbsoluteUri;
         applyInfoFromData["amount"] = decimal.Parse(data.Amount).ToString("0.00");
 
         logger.LogInformation("Request send: {applyInfo}", applyInfoFromData);
@@ -59,7 +58,7 @@ internal class DepositProcessor(
 
         return new DepositResponse
         {
-            Result = JsonSerializer.Serialize(applyInfoFromData, SpeedPayUtility.SerializerOptions)
+            Result = JsonSerializer.Serialize(applyInfo, SpeedPayUtility.SerializerOptions)
         };
     }
 }

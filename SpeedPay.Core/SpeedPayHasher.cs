@@ -13,12 +13,12 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
     public string ComputeMd5(string content)
     {
 
-        _logger.LogTrace("FullText: {content}", content);
+        _logger.LogInformation("Compute MD5: {content}", content);
 
         var bytes = Encoding.UTF8.GetBytes(content);
         var md5 = MD5.HashData(bytes);
 
-        return BitConverter.ToString(md5).Replace("-", "").ToLower();
+        return BitConverter.ToString(md5).Replace("-", "").ToUpper();
 
     }
 

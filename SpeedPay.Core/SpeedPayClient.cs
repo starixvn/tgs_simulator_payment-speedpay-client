@@ -15,7 +15,7 @@ public class SpeedPayClient(
 {
     private readonly SpeedPayOptions _options = optionsAccessor.Value;
 
-    public async ValueTask<JsonNode> DepositAsync(Dictionary<string, object> content, CancellationToken cancellationToken = default)
+    public async ValueTask<JsonNode> DepositAsync(Dictionary<string, string> content, CancellationToken cancellationToken = default)
     {
         var keysIgnore = new HashSet<string> { "merchantNo", "version", "key" };
 
@@ -29,8 +29,8 @@ public class SpeedPayClient(
 
         var formContent = new Dictionary<string, string>
         {
-            ["version"] = (string)content["version"],
-            ["merchantNo"] = (string)content["merchantNo"],
+            ["version"] = content["version"],
+            ["merchantNo"] = content["merchantNo"],
             ["signMsg"] = sign,
             ["request"] = requestValue
 
@@ -51,8 +51,6 @@ public class SpeedPayClient(
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        var rawResponseContent = hasher.DecodeBase64(body);
-
         var nodeBody = JsonNode.Parse(body) ?? throw new ApiFailException($"Deposit response {body} can't read.");
 
         logger.LogInformation("SpeedPay Deposit Body:{body}", nodeBody);
@@ -64,10 +62,9 @@ public class SpeedPayClient(
 
         logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
 
-        if (nodeResponse["code"]!.GetValue<string>() != "0000")
-            throw new ApiFailException($"Error in Payment Provider with status {nodeBody["msg"]!.GetValue<string>()}");
-
-        return nodeResponse;
+        return nodeResponse["code"]!.GetValue<string>() != "0000"
+            ? throw new ApiFailException($"Error in Payment Provider with status {nodeResponse["msg"]!.GetValue<string>()}")
+            : nodeResponse;
     }
 
     public async ValueTask<JsonNode> WithdrawAsync(Dictionary<string,string> content, CancellationToken cancellationToken = default)
