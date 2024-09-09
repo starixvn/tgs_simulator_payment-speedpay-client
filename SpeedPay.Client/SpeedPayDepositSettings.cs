@@ -38,7 +38,7 @@ public class SpeedPayDepositSettings
     public string? AccountName { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    [JsonPropertyName("timeZone")]
+    [JsonPropertyName("timezone")]
     public string Timezone { get; set; } = "China Standard Time";
 
 }
