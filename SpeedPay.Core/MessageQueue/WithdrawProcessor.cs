@@ -22,9 +22,10 @@ internal class WithdrawProcessor(
     {
         var settings = JsonSerializer.Deserialize<SpeedPayWithdrawSettings>(data.ApplyInfo, SpeedPayUtility.SerializerOptions)!;
         var datetime = TimeProducer.GetTimeByTimeZone(settings.Timezone);
+        var amount = decimal.Parse(data.Amount);
         var dict = new Dictionary<string, string>
         {
-            { "amount", data.Amount},
+            { "amount",amount.ToString("0.00")},
             { "bankCode", settings.BankCode },
             { "bankBranch", settings.BankBranch },
             { "bankAccountNo", settings.BankAccountNo },
@@ -44,6 +45,7 @@ internal class WithdrawProcessor(
             settings,
             new SpeedPayWithdrawResponse(Guid.Parse(withdrawResponse["orderNo"]!.GetValue<string>()),
                                         withdrawResponse["gbpOrderNo"]!.GetValue<string>(),
+                                        decimal.Parse(withdrawResponse["fee"]!.GetValue<string>()),
                                         decimal.Parse(withdrawResponse["amount"]!.GetValue<string>())));
 
         await paymentClient.SaveWithdrawFormThirdPartyOrderNoAsync(
