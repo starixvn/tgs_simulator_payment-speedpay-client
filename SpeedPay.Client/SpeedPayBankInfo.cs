@@ -1,4 +1,5 @@
 ﻿namespace Payment.SpeedPay.Client;
 public record SpeedPayBankInfo(
-    string Name,
-    string BankAccount);
+    string BankBranch,
+    string BankAccountNo,
+    string BankAccountName);

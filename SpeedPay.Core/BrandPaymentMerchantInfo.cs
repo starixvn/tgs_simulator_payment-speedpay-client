@@ -1,4 +1,6 @@
 ﻿namespace Payment.SpeedPay;
-internal record BrandPaymentMerchantInfo(
-    string MerchantCode,
-    string SecurityCode);
+public record BrandPaymentMerchantInfo(
+    string MerchantNo,
+    string Version,
+    string Key,
+    string Timezone);

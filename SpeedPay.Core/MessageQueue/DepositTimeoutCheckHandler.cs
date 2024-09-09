@@ -66,7 +66,7 @@ internal class DepositTimeoutCheckHandler(
             _logger.LogError(ex, "Process deposit timeout error!");
 
             await paymentClient.ScheduleAsync(
-                "tgs.payment.gamewallet.deposit.schedule.reject",
+                "tgs.payment.speedpay.deposit.schedule.reject",
                 formId,
                 DateTime.UtcNow.AddMinutes(10D),
                 cancellationToken).ConfigureAwait(false);

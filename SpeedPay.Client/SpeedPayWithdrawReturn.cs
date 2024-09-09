@@ -9,7 +9,6 @@ public record SpeedPayWithdrawReturn
 
     public string Status { get; set; } = default!;
 
-    public string Sign { get; set; } = default!;
-
     public string ExtendData { get; set; } = default!;
+    public string RawResponse { get; set; } = default!;
 }

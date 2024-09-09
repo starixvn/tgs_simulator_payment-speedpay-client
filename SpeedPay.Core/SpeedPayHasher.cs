@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Text;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web;
@@ -9,6 +10,13 @@ namespace Payment.SpeedPay;
 public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
 {
     private readonly ILogger<SpeedPayHasher> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+    public string ProduceSign(IDictionary<string, string> content, IEnumerable<string> keysHash)
+    {
+        var contentToHash = string.Join("&", keysHash.Select(x => $"{x}:{content[x]}"));
+
+        return ComputeMd5(contentToHash);
+    }
 
     public string ComputeMd5(string content)
     {
@@ -51,19 +59,5 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
         var key = new Random().Next(1, 10);
         var param = based64.Insert(length - 10, $"{key}").Insert(key, Guid.NewGuid().ToString("n")[..1]);
         return HttpUtility.UrlEncode(param);
-    }
-
-    public string ComputeHash(string privateKey, IEnumerable<string> data)
-    {
-        var content = string.Join("", data);
-
-        _logger.LogTrace("FullText: {content}", content);
-
-        var enc = Encoding.UTF8;
-        var hmac = new HMACSHA256(enc.GetBytes(content));
-        hmac.Initialize();
-        var buffer = enc.GetBytes(privateKey);
-
-        return BitConverter.ToString(hmac.ComputeHash(buffer)).Replace("-", "").ToLower();
     }
 }

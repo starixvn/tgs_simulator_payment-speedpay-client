@@ -3,38 +3,25 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Payment.SpeedPay.Client;
 
 namespace Payment.SpeedPay;
 
 public class SpeedPayClient(
     HttpClient httpClient,
     SpeedPayHasher hasher,
-    IOptions<SpeedPayOptions> optionsAccessor,
     ILogger<SpeedPayClient> logger)
 {
-    private readonly SpeedPayOptions _options = optionsAccessor.Value;
 
-    public async ValueTask<JsonNode> DepositAsync(Dictionary<string, string> content, CancellationToken cancellationToken = default)
+    public async ValueTask<JsonNode> DepositAsync(Dictionary<string, string> content, SpeedPayDepositSettings settings, CancellationToken cancellationToken = default)
     {
-        var keysIgnore = new HashSet<string> { "merchantNo", "version", "key" };
-
-        var param = content.Where(x=> !keysIgnore.Contains(x.Key)).ToDictionary();
-        var requestValue = hasher.EncodeBase64(JsonSerializer.Serialize(param));
-        content["request"] = requestValue;
-
-        var keysHash = new string[] { "merchantNo", "request", "version", "key" };
-        var contentToHash = string.Join("&", keysHash.Select(x => $"{x}:{content[x]}"));
-        var sign = hasher.ComputeMd5(contentToHash);
-
-        var formContent = new Dictionary<string, string>
+        var generalRequest = new SpeedPayGeneralRequest
         {
-            ["version"] = content["version"],
-            ["merchantNo"] = content["merchantNo"],
-            ["signMsg"] = sign,
-            ["request"] = requestValue
-
+            MerchantNo = settings.MerchantNo,
+            Version = settings.Version,
         };
+
+        var formContent = MakeFormRequest(generalRequest, content, settings.Key);
         var request = new HttpRequestMessage(HttpMethod.Post, "qrh5")
         {
             Content = new FormUrlEncodedContent
@@ -47,18 +34,7 @@ public class SpeedPayClient(
             .SendAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        _ = response.EnsureSuccessStatusCode();
-
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-        var nodeBody = JsonNode.Parse(body) ?? throw new ApiFailException($"Deposit response {body} can't read.");
-
-        logger.LogInformation("SpeedPay Deposit Body:{body}", nodeBody);
-
-        if (nodeBody["resCode"]!.GetValue<string>() != "000")
-            throw new ApiFailException($"Error in Payment Provider with status {nodeBody["resMsg"]!.GetValue<string>()}");
-        var responseContent = hasher.DecodeBase64(nodeBody["response"]!.GetValue<string>());
-        var nodeResponse = JsonNode.Parse(responseContent) ?? throw new ApiFailException($"Deposit response message {responseContent} can't read.");
+        var nodeResponse = await HandleResponseAsync(response, cancellationToken);
 
         logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
 
@@ -67,58 +43,110 @@ public class SpeedPayClient(
             : nodeResponse;
     }
 
-    public async ValueTask<JsonNode> WithdrawAsync(Dictionary<string,string> content, CancellationToken cancellationToken = default)
-    {   
-        var request = new HttpRequestMessage(HttpMethod.Post, "api/MerchantTransfer/withdraw")
+    private Dictionary<string, string> MakeFormRequest(SpeedPayGeneralRequest generalRequest, IDictionary<string, string> paramDetails, string key)
+    {
+        var requestValue = hasher.EncodeBase64(JsonSerializer.Serialize(paramDetails));
+        var hashContent = new Dictionary<string, string>
         {
-            Content = new StringContent(JsonSerializer.Serialize(content), Encoding.UTF8, MediaTypeNames.Application.Json)
+            { "merchantNo", generalRequest.MerchantNo },
+            { "version", generalRequest.Version},
+            { "request", requestValue},
+            { "key", key}
         };
-        request.Headers.Add("Accept", MediaTypeNames.Application.Json);
+        var sign = hasher.ProduceSign(hashContent, ["merchantNo", "request", "version", "key"]);
+
+        return new Dictionary<string, string>
+        {
+            {"merchantNo", generalRequest.MerchantNo },
+            { "version", generalRequest.Version},
+            { "request", requestValue },
+            { "signMsg", sign }
+        };
+    }
+
+    public async Task<JsonNode> HandleResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    {
+        _ = response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var paramResponse = JsonSerializer.Deserialize<Dictionary<string, string>>(body)!;
+
+        logger.LogInformation("SpeedPay Deposit Body:{body}", paramResponse);
+
+        var sign = hasher.ProduceSign(paramResponse, ["merchantNo", "resCode", "resMsg", "response", "version", "key"]);
+
+        if (sign != paramResponse["signMsg"])
+            throw new ApiFailException($"Invalid signMsg real: {paramResponse["resMsg"]}, compute: {sign}");
+
+        if (paramResponse!["resCode"] != "000")
+            throw new ApiFailException($"Error in response from SpeedPay with status {paramResponse["resMsg"]}");
+        var responseContent = hasher.DecodeBase64(paramResponse["response"]);
+        var nodeResponse = JsonNode.Parse(responseContent) ?? throw new ApiFailException($"Deposit response message {responseContent} can't read.");
+
+        logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
+
+        return nodeResponse;
+    }
+
+    public async ValueTask<JsonNode> WithdrawAsync(Dictionary<string, string> content, SpeedPayWithdrawSettings settings, CancellationToken cancellationToken = default)
+    {
+        var generalRequest = new SpeedPayGeneralRequest
+        {
+            MerchantNo = settings.MerchantNo,
+            Version = settings.Version,
+        };
+
+        var formContent = MakeFormRequest(generalRequest, content, settings.Key);
+        var request = new HttpRequestMessage(HttpMethod.Post, "payout")
+        {
+            Content = new FormUrlEncodedContent
+            (
+                formContent
+            )
+        };
 
         var response = await httpClient
             .SendAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-            throw new ApiFailException(body);
+        var nodeResponse = await HandleResponseAsync(response, cancellationToken);
 
-        var node = JsonNode.Parse(body) ?? throw new ApiFailException("Withdraw response can't read.");
+        logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
 
-        if (node["status_code"]!.GetValue<string>() != "001")
-            throw new ApiFailException($"Error in Payment Provider with status {node["statusMessage"]!.GetValue<string>()}");
-
-        logger.LogInformation("GameWalletClient Withdraw Body:{body}", body);
-
-        return node;
+        return nodeResponse["status"]!.GetValue<string>() switch
+        {
+            "PENDING" or "SUCCESS" => nodeResponse,
+            _ => throw new ApiFailException($"Error in Payment Provider with status {nodeResponse["msg"]!.GetValue<string>()}"),
+        };
     }
 
 
-    public async ValueTask<decimal> QueryBalanceAsync(Dictionary<string, string> content, CancellationToken cancellationToken = default)
+    public async ValueTask<decimal> QueryBalanceAsync(Dictionary<string, string> content, BrandPaymentMerchantInfo settings, CancellationToken cancellationToken = default)
+
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "api/merchant/AvailableBalance")
+        var generalRequest = new SpeedPayGeneralRequest
         {
-            Content = new StringContent(JsonSerializer.Serialize(content), Encoding.UTF8, MediaTypeNames.Application.Json)
+            MerchantNo = settings.MerchantNo,
+            Version = settings.Version,
+        };
+
+        var formContent = MakeFormRequest(generalRequest, content, settings.Key);
+        var request = new HttpRequestMessage(HttpMethod.Post, "setting")
+        {
+            Content = new FormUrlEncodedContent
+            (
+                formContent
+            )
         };
 
         var response = await httpClient
             .SendAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        _ = response.EnsureSuccessStatusCode();
+        var nodeResponse = await HandleResponseAsync(response, cancellationToken);
 
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
 
-        logger.LogInformation("GameWallet Query Merchant Balance Body:{body}", body);
-
-        var node = JsonNode.Parse(body) ?? throw new ApiFailException("Query Merchant Balance response can't read.");
-
-        if (node["error_code"]!.GetValue<int>() != 0)
-            throw new ApiFailException(node["error_message"]!.GetValue<string>());
-
-        var balance = node["availableBalance"]!.GetValue<decimal>();
-
-        return balance;
+        return decimal.Parse(nodeResponse["availableBalance"]!.GetValue<string>());
     }
 
 }

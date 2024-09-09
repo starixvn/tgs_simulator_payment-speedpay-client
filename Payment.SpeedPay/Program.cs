@@ -6,10 +6,9 @@ using OpenTelemetry.Instrumentation.AspNetCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Tgs.MessageQueue.Nats.Serializers;
 using Payment.SpeedPay;
 using Payment.SpeedPay.MessageQueue;
-using System;
+using Tgs.MessageQueue.Nats.Serializers;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseSentry();
@@ -39,6 +38,7 @@ builder.Services
     .AddControllers();
 
 builder.Services
+    .AddSingleton<NotifyHandler>()
     .AddSpeedPay(
         options => builder.Configuration.GetSection("SpeedPay").Bind(options),
         clientBuilder => clientBuilder

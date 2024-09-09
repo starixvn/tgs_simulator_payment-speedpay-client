@@ -5,43 +5,29 @@ using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
 using Tgs.ServiceUtility;
+using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Net.Http.Headers;
+using System.Net.Mime;
 
 namespace Payment.SpeedPay.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class DepositController(ILogger<DepositController> logger,
-    SpeedPayHasher hasher,
-    IGetService<GetDepositFormQuery,
-    DepositForm?> getService,
-    IPaymentServiceClient paymentServiceClient,
-    IPaymentClient paymentClient) : ControllerBase
+public class DepositController(ILogger<DepositController> logger) : ControllerBase
 {
 
     [HttpPost("callback", Name = "NotifyDeposit")]
-    [Consumes("application/json")]
+    [Consumes(MediaTypeNames.Application.FormUrlEncoded)]
     public async Task<string> DepositCallbackAsync(
-        [FromBody] CallbackDepositViewModel source)
+        [FromServices]IGetService<GetDepositFormQuery, DepositForm?> getService,
+        [FromServices] NotifyHandler notifyHandler,
+        [FromServices] IPaymentServiceClient paymentServiceClient,
+        [FromServices] IPaymentClient paymentClient,
+        [FromForm] NotifyViewModel source)
     {
-        var keysHash = new string[] { source.Merchant, source.Reference, source.Customer, source.Amount, source.Currency, source.StatusCode};
-
-        var paymentReturn = new SpeedPayDepositReturn()
-        {
-            StatusCode = source.StatusCode,
-            FormId = Guid.Parse(source.Reference),
-            Transaction = source.TransactionId,
-            RealAmount = decimal.Parse(source.ActualAmount),
-            OrderAmount = decimal.Parse(source.Amount),
-            Key = source.Key,
-            ExtendData = JsonSerializer.Serialize(source)
-        };
-
-        return await HandleDepositCallBackAsync(paymentReturn, keysHash).ConfigureAwait(false);
-    }
-
-    private async Task<string> HandleDepositCallBackAsync(SpeedPayDepositReturn paymentReturn, IEnumerable<string> keysHash)
-    {
-        var formId = paymentReturn.FormId;
+        var content = notifyHandler.ProduceCallbackViewModel(source);
+        var formId = Guid.Parse(content.OrderNo);
 
         var depositForm = await getService
             .GetAsync(new(formId), HttpContext.RequestAborted)
@@ -53,21 +39,25 @@ public class DepositController(ILogger<DepositController> logger,
             return "fail";
         }
 
-        var hash = hasher.ComputeMd5(string.Join("", keysHash.Append(depositForm!.ApplyInfo!.Settings.Key)));
-
-        logger.LogInformation("Compute hash: {hash}, sign: {sign}", hash, paymentReturn.Key);
-
-        if (paymentReturn.Key != hash)
-        {
-            logger.LogWarning("Sign value invalid. input: {sign}, compute: {hash}", paymentReturn.Key, hash);
+        if (!notifyHandler.IsValidSign(source, depositForm!.ApplyInfo!.Settings.Key))
             return "fail";
-        }
+
+        var paymentReturn = new SpeedPayDepositReturn
+        {
+            FormId = formId,
+            OrderAmount = depositForm.Amount,
+            RealAmount = decimal.Parse(content.Amount),
+            Transaction = content.GbpOrderNo,
+            Status = content.Status,
+            ExtendData = JsonSerializer.Serialize(content),
+            RawResponse = JsonSerializer.Serialize(source)
+        };
 
         var fsm = PaymentStateMachineFactory.CreateDepositStateMachine(depositForm.Status);
 
-        switch (paymentReturn.StatusCode)
+        switch (content.Status)
         {
-            case "001":
+            case "SUCCESS":
                 if (fsm.CanFire(PaymentTrigger.PaymentDepositCompleted))
                 {
                     await fsm.FireAsync(PaymentTrigger.PaymentDepositCompleted).ConfigureAwait(false);
@@ -89,17 +79,15 @@ public class DepositController(ILogger<DepositController> logger,
                 }
 
                 break;
-            case "009":
-                break;
 
             default:
                 logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
                     formId,
                     paymentReturn.Transaction,
-                    paymentReturn.StatusMessage);
+                    content.Status);
                 return "fail";
 
-            case "007":
+            case "FAIL":
                 if (fsm.CanFire(PaymentTrigger.Reject))
                 {
                     await fsm.FireAsync(PaymentTrigger.Reject).ConfigureAwait(false);

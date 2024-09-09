@@ -8,10 +8,8 @@ using Valhalla.MessageQueue;
 namespace Payment.SpeedPay.MessageQueue;
 
 internal class WithdrawProcessor(
-    SpeedPayClient gameWalletClient,
+    SpeedPayClient speedPayClient,
     IPaymentClient paymentClient,
-    TimeProvider timeProvider,
-    SpeedPayHasher hasher,
     IOptions<SpeedPayOptions> optionsAccessor) : IMessageProcessor<WithdrawRequest, WithdrawResponse>
 {
     private readonly SpeedPayOptions _options = optionsAccessor.Value;
@@ -23,38 +21,30 @@ internal class WithdrawProcessor(
         CancellationToken cancellationToken = default)
     {
         var settings = JsonSerializer.Deserialize<SpeedPayWithdrawSettings>(data.ApplyInfo, SpeedPayUtility.SerializerOptions)!;
-        var amount = decimal.Parse(data.Amount);
-        var now = timeProvider.GetUtcNow();
-
+        var datetime = TimeProducer.GetTimeByTimeZone(settings.Timezone);
         var dict = new Dictionary<string, string>
         {
-            ["Merchant"] = settings.MerchantCode,
-            ["Currency"] = settings.CurrencyCode,
-            ["Bank"] = settings.BankCode,
-            ["Customer"] = settings.Customer,
-            ["Reference"] = settings.Reference.ToString(),
-            ["Amount"] = amount.ToString("0.##"),
-            ["Note"] = "Withdraw for player",
-            ["AccountNumber"] = settings.AccountNumber,
-            ["AccountName"] = settings.AccountName,
-            ["Datetime"] = now.ToString("yyyy-MM-dd HH:mm:sstt"),
-            ["CallbackUri"] = new Uri(_options.CallbackBaseUrl, "withdraw/callback").ToString()
+            { "amount", data.Amount},
+            { "bankCode", settings.BankCode },
+            { "bankBranch", settings.BankBranch },
+            { "bankAccountNo", settings.BankAccountNo },
+            { "bankAccountName", settings.BankAccountName },
+            { "orderNo", settings.OrderNo.ToString() },
+            { "orderTime", datetime.ToString("yyyyMMddHHmmss") },
+            { "notifyUrl", new Uri(_options.CallbackBaseUrl, "withdraw/callback").AbsoluteUri },
+            { "memberCode", settings.MemberCode }
         };
 
-        var keysHash = new string[] { dict["Merchant"], dict["Reference"], dict["Customer"], dict["Amount"],
-            dict["Currency"], now.ToString("yyyyMMddHHmmss"), settings.MerchantSecurityCode };
-        var key = hasher.ComputeMd5(string.Join("", keysHash));
-        dict["Key"] = key;
-
-        var withdrawResponse = await gameWalletClient.WithdrawAsync(
+        var withdrawResponse = await speedPayClient.WithdrawAsync(
             dict,
+            settings,
             cancellationToken).ConfigureAwait(false);
 
         var applyInfo = new SpeedPayWithdrawApplyInfo(
             settings,
-            new SpeedPayWithdrawResponse(Guid.Parse(withdrawResponse["Reference"]!.GetValue<string>()),
-                                        withdrawResponse["transactionId"]!.GetValue<string>(),
-                                        decimal.Parse(withdrawResponse["actualAmount"]!.GetValue<string>())));
+            new SpeedPayWithdrawResponse(Guid.Parse(withdrawResponse["orderNo"]!.GetValue<string>()),
+                                        withdrawResponse["gbpOrderNo"]!.GetValue<string>(),
+                                        decimal.Parse(withdrawResponse["amount"]!.GetValue<string>())));
 
         await paymentClient.SaveWithdrawFormThirdPartyOrderNoAsync(
             applyInfo.Response.FormId,

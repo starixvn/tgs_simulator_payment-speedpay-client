@@ -9,11 +9,9 @@ public record SpeedPayDepositReturn
 
     public Guid FormId { get; set; }
 
-    public string StatusCode { get; set; } = default!;
-
-    public string StatusMessage { get; set; } = default!;
-
-    public string Key { get; set; } = default!;
+    public string Status { get; set; } = default!;
 
     public string ExtendData { get; set; } = default!;
+
+    public string RawResponse { get; set; } = default!;
 }

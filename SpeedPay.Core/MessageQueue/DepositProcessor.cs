@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Payment.SpeedPay.Client;
@@ -24,23 +23,28 @@ internal class DepositProcessor(
         IEnumerable<MessageHeaderValue>? headerValues,
         CancellationToken cancellationToken = default)
     {
-        var applyInfoFromData = JsonSerializer.Deserialize<Dictionary<string, string>>(
-            data.ApplyInfo,
-            SpeedPayUtility.SerializerOptions)!;
-        var timezone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
-        var datetime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone!);
-
-        applyInfoFromData["orderTime"] = datetime.ToString("yyyyMMddHHmmss");
-        applyInfoFromData["notifyUrl"] = new Uri(_options.PaymentApiUrl, "qrh5").AbsoluteUri;
-        applyInfoFromData["amount"] = decimal.Parse(data.Amount).ToString("0.00");
-
-        logger.LogInformation("Request send: {applyInfo}", applyInfoFromData);
-
-        var response = await speedPayClient.DepositAsync(applyInfoFromData, cancellationToken).ConfigureAwait(false);
-
         var settings = JsonSerializer.Deserialize<SpeedPayDepositSettings>(
             data.ApplyInfo,
             SpeedPayUtility.SerializerOptions)!;
+        var amount = decimal.Parse(data.Amount);
+        var datetime = TimeProducer.GetTimeByTimeZone(settings.Timezone);
+        var paymentDetails = new Dictionary<string, string>
+        {
+            { "bankCode", settings.BankCode },
+            { "amount", amount.ToString("0.00") },
+            { "paymentCode", settings.PaymentCode },
+            { "orderNo", settings.OrderNo.ToString() },
+            { "orderTime", datetime.ToString("yyyyMMddHHmmss") },
+            { "returnUrl", settings.ReturnUrl },
+            { "notifyUrl", new Uri(_options.CallbackBaseUrl, "deposit/callback").AbsoluteUri },
+            { "memberCode", settings.MemberCode },
+        };
+
+        AddNoRequireValue(ref paymentDetails, [(settings.RealName, "realName"), (settings.AccountName, "accountName")]);
+
+        logger.LogInformation("Request send: {applyInfo}", paymentDetails);
+
+        var response = await speedPayClient.DepositAsync(paymentDetails, settings, cancellationToken).ConfigureAwait(false);
 
         var applyInfo = new SpeedPayDepositApplyInfo(
             settings,
@@ -60,5 +64,16 @@ internal class DepositProcessor(
         {
             Result = JsonSerializer.Serialize(applyInfo, SpeedPayUtility.SerializerOptions)
         };
+    }
+
+    private void AddNoRequireValue(ref Dictionary<string, string> origin, IEnumerable<(string? value, string key)> items)
+    {
+        foreach (var (value, key) in items)
+        {
+            if (value != null)
+            {
+                origin[value] = key;
+            }
+        }
     }
 }

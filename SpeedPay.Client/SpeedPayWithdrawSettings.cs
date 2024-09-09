@@ -1,16 +1,12 @@
-﻿using System.ComponentModel;
-
-namespace Payment.SpeedPay.Client;
+﻿namespace Payment.SpeedPay.Client;
 public record SpeedPayWithdrawSettings(
-    string MerchantCode,
-    string CurrencyCode,
     string BankCode,
-    string Customer,
-    Guid Reference,
-    string Amount,
-    string Note,
-    string AccountNumber,
-    string AccountName,
-    string Datetime,
-    string CallbackUri,
-    string MerchantSecurityCode);
+    string BankBranch,
+    string BankAccountNo,
+    string BankAccountName,
+    Guid OrderNo,
+    string MemberCode,
+    string MerchantNo,
+    string Version,
+    string Key,
+    string Timezone);

@@ -1,12 +1,11 @@
-﻿using System.Text.Json;
+﻿using System.Net.Mime;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Tgs.Payment.Clients;
 using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
+using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
-using System.Net.Http.Headers;
-using Google.Protobuf.WellKnownTypes;
 
 namespace Payment.SpeedPay.Controllers;
 
@@ -14,19 +13,17 @@ namespace Payment.SpeedPay.Controllers;
 [ApiController]
 public class WithdrawController(ILogger<WithdrawController> logger) : ControllerBase
 {
-    private readonly ILogger<WithdrawController> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     [HttpPost("callback", Name = "NotifyWithdraw")]
-    [Consumes("application/json")]
+    [Consumes(MediaTypeNames.Application.FormUrlEncoded)]
     public async Task<string> WithdrawCallbackAsync(
-    [FromServices] SpeedPayHasher hasher,
         [FromServices] IGetService<GetWithdrawFormQuery, WithdrawForm?> getService,
         [FromServices] IPaymentServiceClient paymentServiceClient,
         [FromServices] IPaymentClient paymentClient,
-        [FromBody] CallbackWithdrawViewModel source)
+        [FromServices] NotifyHandler notifyHandler,
+        [FromForm] NotifyViewModel source)
     {
-        _logger.LogInformation("{source}", source);
-        var formId = Guid.Parse(source.Reference);
+        var content = notifyHandler.ProduceCallbackViewModel(source);
+        var formId = Guid.Parse(content.OrderNo);
 
         var withdrawForm = await getService
             .GetAsync(new(formId), HttpContext.RequestAborted)
@@ -34,37 +31,28 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
 
         if (withdrawForm == null)
         {
-            _logger.LogWarning("Can't found withdraw form({id}).", formId);
+            logger.LogWarning("Can't found withdraw form({id}).", formId);
             return "fail";
         }
 
-        var data = new string[] { source.Merchant, source.Reference, source.Customer, source.Amount, source.Currency, source.StatusCode, withdrawForm!.ApplyInfo!.Settings.MerchantSecurityCode };
-        var sign = source.Key;
-        var hash = hasher.ComputeMd5(string.Join("", data));
-
-        _logger.LogInformation("Compute hash: {hash}, sign: {sign}", hash, sign);
-
-        if (sign != hash)
-        {
-            _logger.LogWarning("Sign value invalid. input: {sign}, compute: {hash}", sign, hash);
+        if (!notifyHandler.IsValidSign(source, withdrawForm!.ApplyInfo!.Settings.Key))
             return "fail";
-        }
 
         var paymentReturn = new SpeedPayWithdrawReturn()
         {
             FormId = formId,
-            ActualAmount = decimal.Parse(source.ActualAmount),
-            Sign = sign,
-            ThirdPartyOrderNo = source.TransactionId,
-            Status = source.StatusMessage,
-
+            ActualAmount = decimal.Parse(content.Amount),
+            ThirdPartyOrderNo = content.GbpOrderNo,
+            Status = content.Status,
+            ExtendData = JsonSerializer.Serialize(content),
+            RawResponse = JsonSerializer.Serialize(source)
         };
 
         var fsm = PaymentStateMachineFactory.CreateWithdrawStateMachine(withdrawForm.Status);
 
-        switch (source.StatusMessage)
+        switch (content.Status)
         {
-            case "Success":
+            case "SUCCESS":
                 if (fsm.CanFire(PaymentTrigger.PaymentWithdrawCompleted))
                 {
                     await fsm.FireAsync(PaymentTrigger.PaymentWithdrawCompleted).ConfigureAwait(false);
@@ -74,7 +62,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                         paymentReturn: JsonSerializer.Serialize(
                             paymentReturn,
                             SpeedPayUtility.SerializerOptions),
-                        actualAmount: decimal.Parse(source.ActualAmount),
+                        actualAmount: decimal.Parse(content.Amount),
                         cancellationToken: HttpContext.RequestAborted).ConfigureAwait(false);
 
                     await paymentClient.PaidWithdrawAsync(
@@ -84,7 +72,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
 
                 break;
 
-            case "Reject":
+            case "FAIL":
                 if (fsm.CanFire(PaymentTrigger.Reject))
                 {
                     await fsm.FireAsync(PaymentTrigger.Reject).ConfigureAwait(false);
@@ -94,7 +82,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                         paymentReturn: JsonSerializer.Serialize(
                             paymentReturn,
                             SpeedPayUtility.SerializerOptions),
-                        actualAmount: decimal.Parse(source.ActualAmount),
+                        actualAmount: decimal.Parse(content.Amount),
                         cancellationToken: HttpContext.RequestAborted).ConfigureAwait(false);
 
                     await paymentClient.RejectWithdrawAsync(
@@ -106,7 +94,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                 break;
 
             default:
-                _logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
+                logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
                     formId,
                     paymentReturn.ThirdPartyOrderNo,
                     paymentReturn.Status);

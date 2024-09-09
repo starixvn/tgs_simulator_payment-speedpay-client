@@ -7,7 +7,7 @@
       "applicationUrl": "http://localhost:5180",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "OTEL_SERVICE_NAME": "Payment-GameWallet(local)",
+        "OTEL_SERVICE_NAME": "Payment-SpeedPay(local)",
         "NODE_IP": "otel.rpgp.cc"
       }
     },
@@ -18,7 +18,7 @@
       "applicationUrl": "https://localhost:7219;http://+:5180",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "OTEL_SERVICE_NAME": "Payment-GameWallet(local)",
+        "OTEL_SERVICE_NAME": "Payment-SpeedPay(local)",
         "NODE_IP": "otel.rpgp.cc"
       }
     },
