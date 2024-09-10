@@ -1,6 +1,4 @@
-﻿using System.Net.Mime;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Payment.SpeedPay.Client;
@@ -34,7 +32,7 @@ public class SpeedPayClient(
             .SendAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        var nodeResponse = await HandleResponseAsync(response, cancellationToken);
+        var nodeResponse = await HandleResponseAsync(response, settings.Key, cancellationToken);
 
         logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
 
@@ -64,11 +62,12 @@ public class SpeedPayClient(
         };
     }
 
-    public async Task<JsonNode> HandleResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    public async Task<JsonNode> HandleResponseAsync(HttpResponseMessage response, string key, CancellationToken cancellationToken = default)
     {
         _ = response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         var paramResponse = JsonSerializer.Deserialize<Dictionary<string, string>>(body)!;
+        paramResponse["key"] = key;
 
         logger.LogInformation("SpeedPay Deposit Body:{body}", paramResponse);
 
@@ -108,7 +107,7 @@ public class SpeedPayClient(
             .SendAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        var nodeResponse = await HandleResponseAsync(response, cancellationToken);
+        var nodeResponse = await HandleResponseAsync(response, settings.Key, cancellationToken);
 
         logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
 
@@ -142,7 +141,7 @@ public class SpeedPayClient(
             .SendAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        var nodeResponse = await HandleResponseAsync(response, cancellationToken);
+        var nodeResponse = await HandleResponseAsync(response, settings.Key, cancellationToken);
 
         logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
 
