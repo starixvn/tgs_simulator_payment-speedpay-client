@@ -111,9 +111,9 @@ public class SpeedPayClient(
 
         logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
 
-        return nodeResponse["status"]!.GetValue<string>() switch
+        return nodeResponse["code"]!.GetValue<string>() switch
         {
-            "PENDING" or "SUCCESS" => nodeResponse,
+            "0000" => nodeResponse,
             _ => throw new ApiFailException($"Error in Payment Provider with status {nodeResponse["msg"]!.GetValue<string>()}"),
         };
     }
