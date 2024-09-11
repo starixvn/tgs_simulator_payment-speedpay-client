@@ -92,9 +92,6 @@ builder.Services
     .AddHttpLogging(logging =>
     {
         logging.LoggingFields = HttpLoggingFields.All;
-        logging.MediaTypeOptions.AddText("application/x-www-form-urlencoded");
-        logging.MediaTypeOptions.AddText("text/html");
-        logging.MediaTypeOptions.AddText("multipart/form-data");
     })
     .AddHealthChecks()
     .Services
@@ -126,7 +123,7 @@ builder.Services
 var app = builder.Build();
 app.UseCors("AllowAll");
 app.UsePathBase($"{builder.Configuration.GetValue<string>("PathBase")}");
-app.UseHttpLogging();
+app.UseWhen(context=> !(context.Request.Path.StartsWithSegments("/healthz") && context.Response.StatusCode == 200), app => app.UseHttpLogging());
 app.MapControllers();
 app.MapHealthChecks("/healthz");
 app.MapProfileViewer();
