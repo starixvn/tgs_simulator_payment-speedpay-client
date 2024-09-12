@@ -1,4 +1,5 @@
-﻿using FluentdForward.OpenTelemetry.MessagePack;
+﻿using System.Net.Mime;
+using FluentdForward.OpenTelemetry.MessagePack;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.Extensions.Options;
 using NATS.Client.Core;
@@ -92,6 +93,10 @@ builder.Services
     .AddHttpLogging(logging =>
     {
         logging.LoggingFields = HttpLoggingFields.All;
+        logging.MediaTypeOptions.AddText(MediaTypeNames.Application.FormUrlEncoded);
+        logging.MediaTypeOptions.AddText(MediaTypeNames.Application.Json);
+        logging.MediaTypeOptions.AddText(MediaTypeNames.Text.Html);
+        logging.MediaTypeOptions.AddText(MediaTypeNames.Multipart.FormData);
     })
     .AddHealthChecks()
     .Services
@@ -123,7 +128,7 @@ builder.Services
 var app = builder.Build();
 app.UseCors("AllowAll");
 app.UsePathBase($"{builder.Configuration.GetValue<string>("PathBase")}");
-app.UseWhen(context=> !(context.Request.Path.StartsWithSegments("/healthz") && context.Response.StatusCode == 200), app => app.UseHttpLogging());
+app.UseWhen(context => !(context.Request.Path.StartsWithSegments("/healthz") && context.Response.StatusCode == 200), app => app.UseHttpLogging());
 app.MapControllers();
 app.MapHealthChecks("/healthz");
 app.MapProfileViewer();
