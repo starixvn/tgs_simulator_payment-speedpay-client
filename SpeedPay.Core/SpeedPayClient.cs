@@ -69,7 +69,7 @@ public class SpeedPayClient(
         var paramResponse = JsonSerializer.Deserialize<Dictionary<string, string>>(body)!;
         paramResponse["key"] = key;
 
-        logger.LogInformation("SpeedPay Deposit Body:{body}", paramResponse);
+        logger.LogInformation("SpeedPay Body:{body}", paramResponse);
 
         var sign = hasher.ProduceSign(paramResponse, ["merchantNo", "resCode", "resMsg", "response", "version", "key"]);
 
@@ -80,8 +80,6 @@ public class SpeedPayClient(
             throw new ApiFailException($"Error in response from SpeedPay with status {paramResponse["resMsg"]}");
         var responseContent = hasher.DecodeBase64(paramResponse["response"]);
         var nodeResponse = JsonNode.Parse(responseContent) ?? throw new ApiFailException($"Deposit response message {responseContent} can't read.");
-
-        logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
 
         return nodeResponse;
     }

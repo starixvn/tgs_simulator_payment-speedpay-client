@@ -50,7 +50,7 @@ internal class DepositProcessor(
             settings,
             new SpeedPayDepositResponse(
                 FormId: settings.OrderNo,
-                Amount: decimal.Parse(data.Amount),
+                Amount: decimal.Parse(response["RealOrderAmount"]!.GetValue<string>()),
                 RedirectUrl: new Uri(response["resultUrl"]!.GetValue<string>())
              ));
 
@@ -66,7 +66,7 @@ internal class DepositProcessor(
         };
     }
 
-    private void AddNoRequireValue(ref Dictionary<string, string> origin, IEnumerable<(string? value, string key)> items)
+    private static void AddNoRequireValue(ref Dictionary<string, string> origin, IEnumerable<(string? value, string key)> items)
     {
         foreach (var (value, key) in items)
         {

@@ -39,11 +39,13 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
         if (!notifyHandler.IsValidSign(source, depositForm!.ApplyInfo!.Settings.Key))
             return Problem("Invalid Sign");
 
+        var realAmount = depositForm.ApplyInfo.Response.Amount;
+
         var paymentReturn = new SpeedPayDepositReturn
         {
             FormId = formId,
             OrderAmount = depositForm.Amount,
-            RealAmount = decimal.Parse(content.Amount),
+            RealAmount = realAmount,
             Transaction = content.GbpOrderNo,
             Status = content.Status,
             ExtendData = JsonSerializer.Serialize(content),
@@ -65,7 +67,6 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                             paymentReturn,
                             SpeedPayUtility.SerializerOptions),
                         actualAmount: paymentReturn.RealAmount,
-                        handlingFee: depositForm.Amount - paymentReturn.RealAmount,
                         cancellationToken: HttpContext.RequestAborted).ConfigureAwait(false);
 
                     await paymentClient.ApproveDepositAsync(
