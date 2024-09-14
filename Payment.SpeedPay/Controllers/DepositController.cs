@@ -105,6 +105,6 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 break;
         }
 
-        return Ok("success");
+        return Ok("OK");
     }
 }

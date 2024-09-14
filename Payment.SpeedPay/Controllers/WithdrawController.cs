@@ -103,6 +103,6 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                 return Problem("Error when save form");
         }
 
-        return Ok("success");
+        return Ok("OK");
     }
 }
