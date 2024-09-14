@@ -38,10 +38,12 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
         if (!notifyHandler.IsValidSign(source, withdrawForm!.ApplyInfo!.Settings.Key))
             return Problem("Invalid Sign");
 
+        var amount = decimal.Parse(content.Amount);
+
         var paymentReturn = new SpeedPayWithdrawReturn()
         {
             FormId = formId,
-            ActualAmount = decimal.Parse(content.Amount),
+            ActualAmount = amount,
             ThirdPartyOrderNo = content.GbpOrderNo,
             Status = content.Status,
             ExtendData = JsonSerializer.Serialize(content),
@@ -62,7 +64,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                         paymentReturn: JsonSerializer.Serialize(
                             paymentReturn,
                             SpeedPayUtility.SerializerOptions),
-                        actualAmount: decimal.Parse(content.Amount),
+                        actualAmount: amount,
                         cancellationToken: HttpContext.RequestAborted).ConfigureAwait(false);
 
                     await paymentClient.PaidWithdrawAsync(

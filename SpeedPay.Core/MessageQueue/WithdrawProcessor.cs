@@ -45,7 +45,6 @@ internal class WithdrawProcessor(
             settings,
             new SpeedPayWithdrawResponse(Guid.Parse(withdrawResponse["orderId"]!.GetValue<string>()),
                                         withdrawResponse["gbpOrderNo"]!.GetValue<string>(),
-                                        decimal.Parse(withdrawResponse["fee"]!.GetValue<string>()),
                                         decimal.Parse(withdrawResponse["amount"]!.GetValue<string>())));
 
         await paymentClient.SaveWithdrawFormThirdPartyOrderNoAsync(
