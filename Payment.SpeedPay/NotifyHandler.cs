@@ -16,12 +16,12 @@ public class NotifyHandler(SpeedPayHasher hasher, ILogger<NotifyHandler> logger)
         };
 
         var sign = hasher.ProduceSign(dict, ["content","notifyTime", "version",  "key"]);
-        var check = sign! == source.SignMsg;
+        var isValid = sign! == source.SignMsg;
 
-        if (check)
+        if (!isValid)
             logger.LogWarning("Sign value invalid. return: {sign}, compute: {hash}", source.SignMsg, sign);
 
-        return sign! == source.SignMsg;
+        return isValid;
     }
 
     public CallbackViewModel ProduceCallbackViewModel(NotifyViewModel source)

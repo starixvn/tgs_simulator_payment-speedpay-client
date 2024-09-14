@@ -15,7 +15,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
 {
     [HttpPost("callback", Name = "NotifyWithdraw")]
     [Consumes(MediaTypeNames.Application.FormUrlEncoded)]
-    public async Task<string> WithdrawCallbackAsync(
+    public async Task<IActionResult> WithdrawCallbackAsync(
         [FromServices] IGetService<GetWithdrawFormQuery, WithdrawForm?> getService,
         [FromServices] IPaymentServiceClient paymentServiceClient,
         [FromServices] IPaymentClient paymentClient,
@@ -32,11 +32,11 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
         if (withdrawForm == null)
         {
             logger.LogWarning("Can't found withdraw form({id}).", formId);
-            return "fail";
+            return Problem($"Can't found deposit form({formId}).");
         }
 
         if (!notifyHandler.IsValidSign(source, withdrawForm!.ApplyInfo!.Settings.Key))
-            return "fail";
+            return Problem("Invalid Sign");
 
         var paymentReturn = new SpeedPayWithdrawReturn()
         {
@@ -98,9 +98,9 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                     formId,
                     paymentReturn.ThirdPartyOrderNo,
                     paymentReturn.Status);
-                return "fail";
+                return Problem("Error when save form");
         }
 
-        return "success";
+        return Ok("success");
     }
 }

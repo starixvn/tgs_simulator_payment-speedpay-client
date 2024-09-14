@@ -5,9 +5,6 @@ using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
 using Tgs.ServiceUtility;
-using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.Net.Http.Headers;
 using System.Net.Mime;
 
 namespace Payment.SpeedPay.Controllers;
@@ -19,7 +16,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
 
     [HttpPost("callback", Name = "NotifyDeposit")]
     [Consumes(MediaTypeNames.Application.FormUrlEncoded)]
-    public async Task<string> DepositCallbackAsync(
+    public async Task<IActionResult> DepositCallbackAsync(
         [FromServices]IGetService<GetDepositFormQuery, DepositForm?> getService,
         [FromServices] NotifyHandler notifyHandler,
         [FromServices] IPaymentServiceClient paymentServiceClient,
@@ -36,11 +33,11 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
         if (depositForm == null)
         {
             logger.LogWarning("Can't found deposit form({id}).", formId);
-            return "fail";
+            return Problem($"Can't found deposit form({formId}).");
         }
 
         if (!notifyHandler.IsValidSign(source, depositForm!.ApplyInfo!.Settings.Key))
-            return "fail";
+            return Problem("Invalid Sign");
 
         var paymentReturn = new SpeedPayDepositReturn
         {
@@ -85,7 +82,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                     formId,
                     paymentReturn.Transaction,
                     content.Status);
-                return "fail";
+                return Problem("Error when save form");
 
             case "FAIL":
                 if (fsm.CanFire(PaymentTrigger.Reject))
@@ -108,6 +105,6 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 break;
         }
 
-        return "success";
+        return Ok("success");
     }
 }
