@@ -50,7 +50,7 @@ internal class DepositProcessor(
             settings,
             new SpeedPayDepositResponse(
                 FormId: settings.OrderNo,
-                Amount: decimal.Parse(response["RealOrderAmount"]!.GetValue<string>()),
+                Amount: response["RealOrderAmount"]!.GetValue<decimal>(),
                 RedirectUrl: new Uri(response["resultUrl"]!.GetValue<string>())
              ));
 
