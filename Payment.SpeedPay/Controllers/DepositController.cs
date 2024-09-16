@@ -1,11 +1,11 @@
-﻿using System.Text.Json;
+﻿using System.Net.Mime;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Tgs.Payment.Clients;
 using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
+using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
-using System.Net.Mime;
 
 namespace Payment.SpeedPay.Controllers;
 
@@ -17,7 +17,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
     [HttpPost("callback", Name = "NotifyDeposit")]
     [Consumes(MediaTypeNames.Application.FormUrlEncoded)]
     public async Task<IActionResult> DepositCallbackAsync(
-        [FromServices]IGetService<GetDepositFormQuery, DepositForm?> getService,
+        [FromServices] IGetService<GetDepositFormQuery, DepositForm?> getService,
         [FromServices] NotifyHandler notifyHandler,
         [FromServices] IPaymentServiceClient paymentServiceClient,
         [FromServices] IPaymentClient paymentClient,
@@ -48,6 +48,9 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
             RealAmount = realAmount,
             Transaction = content.GbpOrderNo,
             Status = content.Status,
+            ReceiveAccountName = "SpeedPay",
+            ReceiveBankAccount = depositForm.ApplyInfo.Settings.MerchantNo,
+            SenderBankAccount = content.BankCode ?? "",
             ExtendData = JsonSerializer.Serialize(content),
             RawResponse = JsonSerializer.Serialize(source)
         };

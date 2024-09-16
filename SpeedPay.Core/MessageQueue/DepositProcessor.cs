@@ -57,7 +57,7 @@ internal class DepositProcessor(
         await paymentClient.ScheduleAsync(
             "tgs.payment.speedpay.deposit.schedule.reject",
             settings.OrderNo,
-            DateTime.UtcNow.AddMinutes(60D),
+            DateTime.UtcNow.AddMinutes(settings.ExpirationTime),
             cancellationToken).ConfigureAwait(false);
 
         return new DepositResponse

@@ -40,4 +40,8 @@ public class SpeedPayDepositSettings
     [JsonPropertyName("timezone")]
     public string Timezone { get; set; } = "China Standard Time";
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonPropertyName("expirationTime")]
+    public double ExpirationTime { get; set; } = 60D;
+
 }
