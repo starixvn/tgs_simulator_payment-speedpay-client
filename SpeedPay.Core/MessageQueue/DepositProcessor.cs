@@ -49,7 +49,7 @@ internal class DepositProcessor(
         var applyInfo = new SpeedPayDepositApplyInfo(
             settings,
             new SpeedPayDepositResponse(
-                FormId: settings.OrderNo,
+                ThirdPartyOrderNo: response["gbpOrderNo"]!.GetValue<string>(),
                 Amount: response["RealOrderAmount"]!.GetValue<decimal>(),
                 RedirectUrl: new Uri(response["resultUrl"]!.GetValue<string>())
              ));
