@@ -63,7 +63,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 if (fsm.CanFire(PaymentTrigger.PaymentDepositCompleted))
                 {
                     await fsm.FireAsync(PaymentTrigger.PaymentDepositCompleted).ConfigureAwait(false);
-
+                    logger.LogInformation("Approve deposit form ({id}).", formId);
                     await paymentServiceClient.SubmitDepositFormStatusAsync(
                         depositForm.Id,
                         paymentReturn: JsonSerializer.Serialize(
@@ -81,18 +81,11 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
 
                 break;
 
-            default:
-                logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
-                    formId,
-                    paymentReturn.Transaction,
-                    content.Status);
-                return Problem("Error when save form");
-
             case "FAIL":
                 if (fsm.CanFire(PaymentTrigger.Reject))
                 {
                     await fsm.FireAsync(PaymentTrigger.Reject).ConfigureAwait(false);
-
+                    logger.LogInformation("Reject deposit form ({id}).", formId);
                     await paymentServiceClient.SubmitDepositFormStatusAsync(
                         depositForm.Id,
                         paymentReturn: JsonSerializer.Serialize(
@@ -107,6 +100,12 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 }
 
                 break;
+            default:
+                logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
+                    formId,
+                    paymentReturn.Transaction,
+                    content.Status);
+                return Problem("Error when save form");
         }
 
         return Ok("OK");
