@@ -1,8 +1,6 @@
 ﻿using System.Net.Mime;
 using FluentdForward.OpenTelemetry.MessagePack;
-using Google.Protobuf.WellKnownTypes;
 using Microsoft.AspNetCore.HttpLogging;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NATS.Client.Core;
 using OpenTelemetry.Instrumentation.AspNetCore;
@@ -15,7 +13,7 @@ using Tgs.Logging.DependencyInjection;
 using Tgs.MessageQueue.Nats.Serializers;
 
 var builder = WebApplication.CreateBuilder(args);
-//builder.WebHost.UseSentry();
+builder.WebHost.UseSentry();
 builder.Logging
     .AddOpenTelemetry(options =>
     {
