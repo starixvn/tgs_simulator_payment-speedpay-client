@@ -39,7 +39,7 @@ public class SpeedPayClient(
         });
 
         var (nodeResponse, rawBody) = await HandleResponseAsync(response, settings.Key, cancellationToken);
-        LogApi(formContent, request, timeExecute, response, rawBody, httpClient.BaseAddress!.ToString(), content["orderNo"]);
+        LogApi(formContent, request, timeExecute, response, rawBody, content["orderNo"]);
 
         logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
 
@@ -48,15 +48,15 @@ public class SpeedPayClient(
             : nodeResponse;
     }
 
-    private void LogApi(Dictionary<string, string> formContent, HttpRequestMessage request, int timeExecute, HttpResponseMessage response, string rawBody, string prefix, string trackingId)
+    private void LogApi(Dictionary<string, string> formContent, HttpRequestMessage request, int timeExecute, HttpResponseMessage response, string rawBody, string trackingId)
     {
         var apiCall = new ApiLogEvent
         {
             ExecutionTimeMs = timeExecute,
             Ip = GetIPAddress(),
             Method = request.Method.Method,
-            Path = request.RequestUri?.ToString() ?? string.Empty,
-            Prefix = prefix,
+            Path = request.RequestUri?.PathAndQuery ?? string.Empty,
+            Prefix = request.RequestUri?.Host ?? string.Empty,
             RecordedOn = DateTimeOffset.Now,
             RequestContent = JsonSerializer.Serialize(formContent),
             RequestHeaders = JsonSerializer.Serialize(request.Headers),
@@ -139,7 +139,7 @@ public class SpeedPayClient(
 
         var (nodeResponse, rawBody) = await HandleResponseAsync(response, settings.Key, cancellationToken);
 
-        LogApi(formContent, request, timeExecute, response, rawBody, httpClient.BaseAddress!.ToString(), content["orderNo"]);
+        LogApi(formContent, request, timeExecute, response, rawBody, content["orderNo"]);
 
         logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
 
