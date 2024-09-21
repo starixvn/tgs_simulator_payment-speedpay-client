@@ -50,13 +50,14 @@ public class SpeedPayClient(
 
     private void LogApi(Dictionary<string, string> formContent, HttpRequestMessage request, int timeExecute, HttpResponseMessage response, string rawBody, string trackingId)
     {
+        var path = request.RequestUri?.PathAndQuery ?? string.Empty;
         var apiCall = new ApiLogEvent
         {
             ExecutionTimeMs = timeExecute,
             Ip = GetIPAddress(),
             Method = request.Method.Method,
-            Path = request.RequestUri?.PathAndQuery ?? string.Empty,
-            Prefix = request.RequestUri?.Host ?? string.Empty,
+            Path = path,
+            Prefix = request.RequestUri?.AbsoluteUri?.Replace(path, string.Empty) ?? string.Empty,
             RecordedOn = DateTimeOffset.Now,
             RequestContent = JsonSerializer.Serialize(formContent),
             RequestHeaders = JsonSerializer.Serialize(request.Headers),
@@ -196,5 +197,4 @@ public class SpeedPayClient(
 
         return ipAddress?.ToString() ?? string.Empty;
     }
-
 }
