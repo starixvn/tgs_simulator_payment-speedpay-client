@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
+using Tgs.Logging.Extensions;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
 
@@ -25,7 +26,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
     {
         var content = notifyHandler.ProduceCallbackViewModel(source);
         var formId = Guid.Parse(content.OrderNo);
-
+        HttpContext.AddTrackingId(formId);
         var depositForm = await getService
             .GetAsync(new(formId), HttpContext.RequestAborted)
             .ConfigureAwait(false);

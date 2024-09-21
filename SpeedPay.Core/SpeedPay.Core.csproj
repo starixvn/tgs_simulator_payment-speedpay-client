@@ -18,6 +18,7 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="PhoenixToolkits.MessageQueue" Version="2.1.0" />
+		<PackageReference Include="Tgs.Logging" Version="0.0.25" />
 		<PackageReference Include="Tgs.Payment.Client" Version="0.6.5" />
 		<PackageReference Include="Tgs.PaymentService.Client" Version="0.8.5" />
 		<PackageReference Include="TGS.ServiceUtility" Version="0.2.0" />

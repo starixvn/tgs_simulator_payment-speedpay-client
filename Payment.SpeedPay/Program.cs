@@ -1,6 +1,8 @@
 ﻿using System.Net.Mime;
 using FluentdForward.OpenTelemetry.MessagePack;
+using Google.Protobuf.WellKnownTypes;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NATS.Client.Core;
 using OpenTelemetry.Instrumentation.AspNetCore;
@@ -9,10 +11,11 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Payment.SpeedPay;
 using Payment.SpeedPay.MessageQueue;
+using Tgs.Logging.DependencyInjection;
 using Tgs.MessageQueue.Nats.Serializers;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseSentry();
+//builder.WebHost.UseSentry();
 builder.Logging
     .AddOpenTelemetry(options =>
     {
@@ -37,8 +40,8 @@ builder.Services.AddCors(options =>
 });
 builder.Services
     .AddControllers();
-
 builder.Services
+    .AddTgsLogWithHttpLogging(options => builder.Configuration.GetSection("TgsApiLog").Bind(options))
     .AddSingleton<NotifyHandler>()
     .AddSpeedPay(
         options => builder.Configuration.GetSection("SpeedPay").Bind(options),
@@ -147,6 +150,6 @@ app.Use(async (context, next) =>
         _ = await stream.ReadToEndAsync().ConfigureAwait(false);
     }
 });
-
+app.UseTgsApiLoggerMiddleware();
 SentrySdk.CaptureMessage($"Started result SpeedPay-Payment at {DateTime.Now} at {Environment.MachineName}");
 app.Run();
