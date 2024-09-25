@@ -19,7 +19,7 @@ public class NotifyHandler(SpeedPayHasher hasher, ILogger<NotifyHandler> logger)
         var isValid = sign! == source.SignMsg;
 
         if (!isValid)
-            logger.LogWarning("Sign value invalid. return: {sign}, compute: {hash}", source.SignMsg, sign);
+            logger.LogWarning("Sign value invalid. return: {Sign}, compute: {Hash}", source.SignMsg, sign);
 
         return isValid;
     }
@@ -27,7 +27,7 @@ public class NotifyHandler(SpeedPayHasher hasher, ILogger<NotifyHandler> logger)
     public CallbackViewModel ProduceCallbackViewModel(NotifyViewModel source)
     {
         var rawContent = hasher.DecodeBase64(source.Content);
-        logger.LogInformation("Params in: {content}", rawContent);
+        logger.LogInformation("Params in: {Content}", rawContent);
 
         return JsonSerializer.Deserialize<CallbackViewModel>(rawContent)!;
     }

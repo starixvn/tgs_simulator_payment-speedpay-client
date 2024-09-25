@@ -2,6 +2,7 @@
 using Tgs.Payment.Clients;
 using Payment.SpeedPay.Client;
 using Tgs.ServiceUtility;
+using System.Net.WebSockets;
 
 namespace Payment.SpeedPay.ApplicationServices;
 
@@ -20,9 +21,14 @@ internal class GetWithdrawFormQueryService : IGetService<GetWithdrawFormQuery, W
             .GetWithdrawFormAsync(query.FormId, cancellationToken)
         .ConfigureAwait(false);
 
-        return data == null
-            ? null
-            : new WithdrawForm(
+        if (data == null) 
+        {
+            return null;
+        }
+
+        var applyInfo = data.ApplyInfo == null ? null: JsonSerializer.Deserialize<SpeedPayWithdrawApplyInfo>(data.ApplyInfo, SpeedPayUtility.SerializerOptions);
+
+        return new WithdrawForm(
                 data.Id,
                 data.UserId,
                 data.UserType,
@@ -31,9 +37,7 @@ internal class GetWithdrawFormQueryService : IGetService<GetWithdrawFormQuery, W
                 data.Amount,
                 data.Status,
                 data.BankInfoId,
-                string.IsNullOrEmpty(data.ApplyInfo)
-        ? null
-        : JsonSerializer.Deserialize<SpeedPayWithdrawApplyInfo>(data.ApplyInfo, SpeedPayUtility.SerializerOptions),
+                applyInfo,
                 data.PaymentReturn);
     }
 }

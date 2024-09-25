@@ -13,11 +13,11 @@ COPY ["SpeedPay.Client/SpeedPay.Client.csproj", "SpeedPay.Client/"]
 RUN dotnet restore "./Payment.SpeedPay/./Payment.SpeedPay.csproj"
 COPY . .
 WORKDIR "/src/Payment.SpeedPay"
-RUN dotnet build "./Payment.SpeedPay.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./Payment.SpeedPay.csproj" -c "$BUILD_CONFIGURATION" -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Payment.SpeedPay.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Payment.SpeedPay.csproj" -c "$BUILD_CONFIGURATION" -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app

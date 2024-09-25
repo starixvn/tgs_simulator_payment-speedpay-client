@@ -20,7 +20,7 @@ public class SpeedPayDepositSettings
     public string PaymentCode { get; set; } = default!;
 
     [JsonPropertyName("orderNo")]
-    public Guid OrderNo { get; set; } = default!;
+    public Guid OrderNo { get; set; } = Guid.Empty;
 
     [JsonPropertyName("returnUrl")]
     public string ReturnUrl { get; set; } = default!;

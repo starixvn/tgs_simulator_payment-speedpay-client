@@ -21,7 +21,7 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
     public string ComputeMd5(string content)
     {
 
-        _logger.LogInformation("Compute MD5: {content}", content);
+        _logger.LogInformation("Compute MD5: {Content}", content);
 
         var bytes = Encoding.UTF8.GetBytes(content);
         var md5 = MD5.HashData(bytes);
@@ -32,21 +32,21 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
 
     public string EncodeBase64(string content)
     {
-        _logger.LogInformation("EncodeBase64: {plainText}", content);
+        _logger.LogInformation("EncodeBase64: {PlainText}", content);
 
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(content));
     }
 
     public string DecodeBase64(string content)
     {
-        _logger.LogInformation("EncodeBase64: {plainText}", content);
+        _logger.LogInformation("EncodeBase64: {PlainText}", content);
 
         return Encoding.UTF8.GetString(Convert.FromBase64String(content));
     }
 
     public string EncodeParam(string content)
     {
-        _logger.LogTrace("FullText: {plainText}", content);
+        _logger.LogTrace("FullText: {PlainText}", content);
 
         var based64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(content));
 

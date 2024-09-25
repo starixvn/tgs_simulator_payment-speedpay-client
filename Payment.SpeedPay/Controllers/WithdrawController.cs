@@ -1,4 +1,5 @@
 ﻿using System.Net.Mime;
+using System.Net.WebSockets;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Payment.SpeedPay.ApplicationServices;
@@ -12,7 +13,7 @@ namespace Payment.SpeedPay.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class WithdrawController(ILogger<WithdrawController> logger) : ControllerBase
+public class WithdrawController(ILogger<WithdrawController> logger, TgsLogHandler logHandler) : ControllerBase
 {
     [HttpPost("callback", Name = "NotifyWithdraw")]
     [Consumes(MediaTypeNames.Application.FormUrlEncoded)]
@@ -24,20 +25,28 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
         [FromForm] NotifyViewModel source)
     {
         var content = notifyHandler.ProduceCallbackViewModel(source);
+        var response = await HandleWithdrawalRequestAsync(logger, getService, paymentServiceClient, paymentClient, notifyHandler, source, content).ConfigureAwait(false);
+
+        logHandler.LogApi(HttpContext, content, response);
+
+        return Ok(response);
+    }
+
+    private async Task<string> HandleWithdrawalRequestAsync(ILogger<WithdrawController> logger, IGetService<GetWithdrawFormQuery, WithdrawForm?> getService, IPaymentServiceClient paymentServiceClient, IPaymentClient paymentClient, NotifyHandler notifyHandler, NotifyViewModel source, CallbackViewModel content)
+    {
         var formId = Guid.Parse(content.OrderNo);
-        HttpContext.AddTrackingId(formId);
         var withdrawForm = await getService
             .GetAsync(new(formId), HttpContext.RequestAborted)
             .ConfigureAwait(false);
 
         if (withdrawForm == null)
         {
-            logger.LogWarning("Can't found withdraw form({id}).", formId);
-            return Problem($"Can't found deposit form({formId}).");
+            logger.LogWarning("Can't found withdraw form({Id}).", formId);
+            return $"Can't found deposit form({formId}).";
         }
 
         if (!notifyHandler.IsValidSign(source, withdrawForm!.ApplyInfo!.Settings.Key))
-            return Problem("Invalid Sign");
+            return "Invalid Sign";
 
         var amount = decimal.Parse(content.Amount);
 
@@ -97,13 +106,13 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
                 break;
 
             default:
-                logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
+                logger.LogWarning("FormId:{FormId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{Status}",
                     formId,
                     paymentReturn.ThirdPartyOrderNo,
                     paymentReturn.Status);
-                return Problem("Error when save form");
+                return "Error when save form";
         }
 
-        return Ok("OK");
+        return "OK";
     }
 }

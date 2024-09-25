@@ -17,21 +17,26 @@ internal class GetDepositFormQueryService : IGetService<GetDepositFormQuery, Dep
     public async ValueTask<DepositForm?> GetAsync(GetDepositFormQuery query, CancellationToken cancellationToken = default)
     {
         var data = await _paymentServiceClient
-            .GetDepositFormAsync(query.FormId, cancellationToken)
-        .ConfigureAwait(false);
+                        .GetDepositFormAsync(query.FormId, cancellationToken)
+                        .ConfigureAwait(false);
 
-        return data == null
+        if (data == null)
+        {
+            return null;
+        }
+
+        var applyInfo = data.ApplyInfo == null
             ? null
-            : new DepositForm(
-                data.Id,
-                data.PlayerCode,
-                data.BrandId,
-                data.BrandPaymentId,
-                data.Amount,
-                data.Status,
-                string.IsNullOrEmpty(data.ApplyInfo)
-        ? null
-        : JsonSerializer.Deserialize<SpeedPayDepositApplyInfo>(data.ApplyInfo, SpeedPayUtility.SerializerOptions),
-                data.PaymentReturn);
+            : JsonSerializer.Deserialize<SpeedPayDepositApplyInfo>(data.ApplyInfo, SpeedPayUtility.SerializerOptions);
+
+        return new DepositForm(
+            data.Id,
+            data.PlayerCode,
+            data.BrandId,
+            data.BrandPaymentId,
+            data.Amount,
+            data.Status,
+            applyInfo,
+            data.PaymentReturn);
     }
 }

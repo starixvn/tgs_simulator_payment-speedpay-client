@@ -42,7 +42,7 @@ internal class DepositProcessor(
 
         AddNoRequireValue(ref paymentDetails, [(settings.RealName, "realName"), (settings.AccountName, "accountName")]);
 
-        logger.LogInformation("Request send: {applyInfo}", paymentDetails);
+        logger.LogInformation("Request send: {ApplyInfo}", paymentDetails);
 
         var response = await speedPayClient.DepositAsync(paymentDetails, settings, cancellationToken).ConfigureAwait(false);
 

@@ -1,10 +1,12 @@
-﻿using System.Net.Mime;
+﻿using System.Net;
+using System.Net.Mime;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
-using Tgs.Logging.Extensions;
+using Tgs.Logging;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
 
@@ -12,7 +14,7 @@ namespace Payment.SpeedPay.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class DepositController(ILogger<DepositController> logger) : ControllerBase
+public class DepositController(ILogger<DepositController> logger, TgsLogHandler logHandler) : ControllerBase
 {
 
     [HttpPost("callback", Name = "NotifyDeposit")]
@@ -25,20 +27,35 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
         [FromForm] NotifyViewModel source)
     {
         var content = notifyHandler.ProduceCallbackViewModel(source);
+        var response = await HandleDepositRequestAsync(logger, getService, notifyHandler, paymentServiceClient, paymentClient, source, content).ConfigureAwait(false);      
+        
+        logHandler.LogApi(HttpContext, content, response);
+        
+        return Ok(response);
+    }
+
+    private async Task<string> HandleDepositRequestAsync(
+        ILogger<DepositController> logger, 
+        IGetService<GetDepositFormQuery, DepositForm?> getService, 
+        NotifyHandler notifyHandler, IPaymentServiceClient paymentServiceClient, 
+        IPaymentClient paymentClient, 
+        NotifyViewModel source, 
+        CallbackViewModel content)
+    {
         var formId = Guid.Parse(content.OrderNo);
-        HttpContext.AddTrackingId(formId);
+
         var depositForm = await getService
             .GetAsync(new(formId), HttpContext.RequestAborted)
             .ConfigureAwait(false);
 
         if (depositForm == null)
         {
-            logger.LogWarning("Can't found deposit form({id}).", formId);
-            return Problem($"Can't found deposit form({formId}).");
+            logger.LogWarning("Can't found deposit form({Id}).", formId);
+            return $"Can't found deposit form({formId}).";
         }
 
         if (!notifyHandler.IsValidSign(source, depositForm!.ApplyInfo!.Settings.Key))
-            return Problem("Invalid Sign");
+            return "Invalid Sign";
 
         var realAmount = depositForm.ApplyInfo.Response.Amount;
 
@@ -64,7 +81,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 if (fsm.CanFire(PaymentTrigger.PaymentDepositCompleted))
                 {
                     await fsm.FireAsync(PaymentTrigger.PaymentDepositCompleted).ConfigureAwait(false);
-                    logger.LogInformation("Approve deposit form ({id}).", formId);
+                    logger.LogInformation("Approve deposit form ({Id}).", formId);
                     await paymentServiceClient.SubmitDepositFormStatusAsync(
                         depositForm.Id,
                         paymentReturn: JsonSerializer.Serialize(
@@ -86,7 +103,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 if (fsm.CanFire(PaymentTrigger.Reject))
                 {
                     await fsm.FireAsync(PaymentTrigger.Reject).ConfigureAwait(false);
-                    logger.LogInformation("Reject deposit form ({id}).", formId);
+                    logger.LogInformation("Reject deposit form ({Id}).", formId);
                     await paymentServiceClient.SubmitDepositFormStatusAsync(
                         depositForm.Id,
                         paymentReturn: JsonSerializer.Serialize(
@@ -102,13 +119,13 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
 
                 break;
             default:
-                logger.LogWarning("FormId:{formId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{status}",
+                logger.LogWarning("FormId:{FormId}, ThirdPartyOrderNo:{ThirdPartyOrderNo} , payment Status:{Status}",
                     formId,
                     paymentReturn.Transaction,
                     content.Status);
-                return Problem("Error when save form");
+                return "Error when save form";
         }
 
-        return Ok("OK");
+        return "OK";
     }
 }

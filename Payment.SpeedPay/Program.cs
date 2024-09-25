@@ -39,8 +39,9 @@ builder.Services.AddCors(options =>
 builder.Services
     .AddControllers();
 builder.Services
-    .AddTgsLogWithHttpLogging(options => builder.Configuration.GetSection("TgsApiLog").Bind(options))
+    .AddTgsLog()
     .AddSingleton<NotifyHandler>()
+    .AddSingleton<TgsLogHandler>()
     .AddSpeedPay(
         options => builder.Configuration.GetSection("SpeedPay").Bind(options),
         clientBuilder => clientBuilder
@@ -123,7 +124,7 @@ builder.Services
             && !httpContext.Request.Path.StartsWithSegments("/healthz")
             && !httpContext.Request.Path.StartsWithSegments("/metrics")
             && !httpContext.Request.Path.StartsWithSegments("/profiler/")
-            && !new[] { "html", "ico", "png", "jpg" }.Any(
+            && !new List<string> { "html", "ico", "png", "jpg" }.Exists(
                 ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
 
 var app = builder.Build();
@@ -148,6 +149,6 @@ app.Use(async (context, next) =>
         _ = await stream.ReadToEndAsync().ConfigureAwait(false);
     }
 });
-app.UseTgsApiLoggerMiddleware();
+
 SentrySdk.CaptureMessage($"Started result SpeedPay-Payment at {DateTime.Now} at {Environment.MachineName}");
-app.Run();
+await app.RunAsync();

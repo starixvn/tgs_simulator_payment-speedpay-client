@@ -39,9 +39,9 @@ public class SpeedPayClient(
         });
 
         var (nodeResponse, rawBody) = await HandleResponseAsync(response, settings.Key, cancellationToken);
-        LogApi(formContent, request, timeExecute, response, rawBody, content["orderNo"]);
+        LogApi(content, request, timeExecute, response, rawBody, content["orderNo"]);
 
-        logger.LogInformation("SpeedPay Deposit Response:{body}", nodeResponse);
+        logger.LogInformation("SpeedPay Deposit Response:{Body}", nodeResponse);
 
         return nodeResponse["code"]!.GetValue<string>() != "0000"
             ? throw new ApiFailException($"Error in Payment Provider with status {nodeResponse["msg"]!.GetValue<string>()}")
@@ -99,7 +99,7 @@ public class SpeedPayClient(
         var paramResponse = JsonSerializer.Deserialize<Dictionary<string, string>>(body)!;
         paramResponse["key"] = key;
 
-        logger.LogInformation("SpeedPay Body:{body}", paramResponse);
+        logger.LogInformation("SpeedPay Body:{Body}", paramResponse);
 
         var sign = hasher.ProduceSign(paramResponse, ["merchantNo", "resCode", "resMsg", "response", "version", "key"]);
 
@@ -140,9 +140,9 @@ public class SpeedPayClient(
 
         var (nodeResponse, rawBody) = await HandleResponseAsync(response, settings.Key, cancellationToken);
 
-        LogApi(formContent, request, timeExecute, response, rawBody, content["orderNo"]);
+        LogApi(content, request, timeExecute, response, rawBody, content["orderNo"]);
 
-        logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
+        logger.LogInformation("SpeedPay Withdraw Response:{Body}", nodeResponse);
 
         return nodeResponse["code"]!.GetValue<string>() switch
         {
@@ -176,7 +176,7 @@ public class SpeedPayClient(
 
         var (nodeResponse, _) = await HandleResponseAsync(response, settings.Key, cancellationToken);
 
-        logger.LogInformation("SpeedPay Withdraw Response:{body}", nodeResponse);
+        logger.LogInformation("SpeedPay Withdraw Response:{Body}", nodeResponse);
 
         return decimal.Parse(nodeResponse["availableBalance"]!.GetValue<string>());
     }
