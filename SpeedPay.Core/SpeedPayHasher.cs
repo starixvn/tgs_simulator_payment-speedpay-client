@@ -1,8 +1,5 @@
-﻿using System.Buffers.Text;
-using System.Collections.Generic;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using System.Web;
 using Microsoft.Extensions.Logging;
 
 namespace Payment.SpeedPay;
@@ -26,7 +23,7 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
         var bytes = Encoding.UTF8.GetBytes(content);
         var md5 = MD5.HashData(bytes);
 
-        return BitConverter.ToString(md5).Replace("-", "").ToUpper();
+        return BitConverter.ToString(md5).Replace("-", "").ToUpperInvariant();
 
     }
 
@@ -42,22 +39,5 @@ public class SpeedPayHasher(ILogger<SpeedPayHasher> logger)
         _logger.LogInformation("EncodeBase64: {PlainText}", content);
 
         return Encoding.UTF8.GetString(Convert.FromBase64String(content));
-    }
-
-    public string EncodeParam(string content)
-    {
-        _logger.LogTrace("FullText: {PlainText}", content);
-
-        var based64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(content));
-
-        if (string.IsNullOrEmpty(based64))
-            return string.Empty;
-
-        var length = based64.Length;
-        if (length < 100)
-            throw new InvalidDataException("Invalid text to encode");
-        var key = new Random().Next(1, 10);
-        var param = based64.Insert(length - 10, $"{key}").Insert(key, Guid.NewGuid().ToString("n")[..1]);
-        return HttpUtility.UrlEncode(param);
     }
 }

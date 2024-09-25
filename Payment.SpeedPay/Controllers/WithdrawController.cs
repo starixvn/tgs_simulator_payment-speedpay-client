@@ -56,11 +56,13 @@ public class WithdrawController(ILogger<WithdrawController> logger, TgsLogHandle
         }
 
         if (!notifyHandler.IsValidSign(source, withdrawForm!.ApplyInfo!.Settings.Key))
+        {
             return "Invalid Sign";
+        }    
 
         var amount = decimal.Parse(content.Amount);
 
-        var paymentReturn = new SpeedPayWithdrawReturn()
+        var paymentReturn = new SpeedPayWithdrawReturn
         {
             FormId = formId,
             ActualAmount = amount,

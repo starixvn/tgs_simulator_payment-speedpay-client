@@ -1,10 +1,10 @@
 ﻿namespace Payment.SpeedPay;
-internal static class TimeProducer
+public static class TimeProducer
 {
     public static DateTimeOffset GetTimeByTimeZone(string timeZone)
     {
-        var timezone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
-        var datetime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone!);
+        var timezoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+        var datetime = TimeZoneInfo.ConvertTimeFromUtc(DateTimeOffset.UtcNow.UtcDateTime, timezoneInfo);
 
         return datetime;
     }

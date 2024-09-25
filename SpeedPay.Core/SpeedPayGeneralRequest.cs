@@ -2,7 +2,7 @@
 
 namespace Payment.SpeedPay;
 
-internal class SpeedPayGeneralRequest
+public class SpeedPayGeneralRequest
 {
     [JsonPropertyName("version")]
     public string Version { get; set; } = default!;

@@ -52,7 +52,9 @@ public class DepositController(ILogger<DepositController> logger, TgsLogHandler 
         }
 
         if (!notifyHandler.IsValidSign(source, depositForm!.ApplyInfo!.Settings.Key))
+        {
             return "Invalid Sign";
+        }
 
         var realAmount = depositForm.ApplyInfo.Response.Amount;
 

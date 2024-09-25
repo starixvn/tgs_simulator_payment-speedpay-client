@@ -106,10 +106,14 @@ public class SpeedPayClient(
         var sign = hasher.ProduceSign(paramResponse, [MERCHANT_NO, "resCode", "resMsg", "response", VERSION, "key"]);
 
         if (sign != paramResponse["signMsg"])
+        {
             throw new ApiFailException($"Invalid signMsg real: {paramResponse["resMsg"]}, compute: {sign}");
+        }    
 
         if (paramResponse!["resCode"] != "000")
-            throw new ApiFailException($"Error in response from SpeedPay with status {paramResponse["resMsg"]}");
+        {
+            throw new ApiFailException($"Error in {nameof(response)} from SpeedPay with status {paramResponse["resMsg"]}");
+        }    
         var responseContent = hasher.DecodeBase64(paramResponse["response"]);
         var nodeResponse = JsonNode.Parse(responseContent) ?? throw new ApiFailException($"Deposit response message {responseContent} can't read.");
 
@@ -146,13 +150,9 @@ public class SpeedPayClient(
 
         logger.LogInformation("SpeedPay Withdraw Response:{Body}", nodeResponse);
 
-        return nodeResponse["code"]!.GetValue<string>() switch
-        {
-            "0000" => nodeResponse,
-            _ => throw new ApiFailException($"Error in Payment Provider with status {nodeResponse["msg"]!.GetValue<string>()}"),
-        };
+        return nodeResponse["code"]!.GetValue<string>() == "0000" ? nodeResponse
+            : throw new ApiFailException($"Error in Payment Provider with status {nodeResponse["msg"]!.GetValue<string>()}");
     }
-
 
     public async ValueTask<decimal> QueryBalanceAsync(Dictionary<string, string> content, BrandPaymentMerchantInfo settings, CancellationToken cancellationToken = default)
 

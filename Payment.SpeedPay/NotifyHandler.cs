@@ -19,7 +19,9 @@ public class NotifyHandler(SpeedPayHasher hasher, ILogger<NotifyHandler> logger)
         var isValid = sign! == source.SignMsg;
 
         if (!isValid)
+        {
             logger.LogWarning("Sign value invalid. return: {Sign}, compute: {Hash}", source.SignMsg, sign);
+        }
 
         return isValid;
     }

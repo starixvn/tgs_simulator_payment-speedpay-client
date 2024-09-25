@@ -11,6 +11,7 @@ internal class DepositTimeoutCheckHandler(
     ILogger<DepositTimeoutCheckHandler> logger)
     : IMessageHandler<ScheduleRequest>
 {
+    private const double DepositTimeoutRecheck = 10D;
     private readonly ILogger<DepositTimeoutCheckHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public async ValueTask HandleAsync(
@@ -48,7 +49,9 @@ internal class DepositTimeoutCheckHandler(
                 depositForm.Status);
 
             if (depositForm.Status >= PaymentFlowState.Reject)
+            {
                 return;
+            }    
 
             var fsm = PaymentStateMachineFactory.CreateDepositStateMachine(depositForm.Status);
 
@@ -68,7 +71,7 @@ internal class DepositTimeoutCheckHandler(
             await paymentClient.ScheduleAsync(
                 "tgs.payment.speedpay.deposit.schedule.reject",
                 formId,
-                DateTime.UtcNow.AddMinutes(10D),
+                DateTimeOffset.UtcNow.UtcDateTime.AddMinutes(DepositTimeoutRecheck),
                 cancellationToken).ConfigureAwait(false);
         }
     }

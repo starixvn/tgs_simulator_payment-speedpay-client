@@ -1,9 +1,8 @@
-﻿using System.Reflection;
-using Payment.SpeedPay;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace Payment.SpeedPay.DependencyInjection;
 
-public static class ServiceCollectionExtensions
+public static class SpeedPayServiceCollectionExtensions
 {
     public static IServiceCollection AddSpeedPay(
        this IServiceCollection services,
@@ -16,7 +15,7 @@ public static class ServiceCollectionExtensions
             .AddOptions<SpeedPayOptions>()
             .Configure(configureOptions)
             .Services
-            .RegisterAllServiceUtilityTypes(Assembly.GetExecutingAssembly(), ServiceLifetime.Transient)
+            .RegisterAllServiceUtilityTypes(typeof(SpeedPayServiceCollectionExtensions).Assembly, ServiceLifetime.Transient)
             .AddSingleton<SpeedPayHasher>();
     }
 }

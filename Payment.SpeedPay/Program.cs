@@ -1,4 +1,5 @@
-﻿using System.Net.Mime;
+﻿using System.Net;
+using System.Net.Mime;
 using FluentdForward.OpenTelemetry.MessagePack;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.Extensions.Options;
@@ -8,8 +9,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Payment.SpeedPay;
+using Payment.SpeedPay.DependencyInjection;
 using Payment.SpeedPay.MessageQueue;
-using Tgs.Logging.DependencyInjection;
 using Tgs.MessageQueue.Nats.Serializers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,7 +65,7 @@ builder.Services
 builder.Services
     .AddKeyedSingleton(
         "NatQueue",
-        (sp, _) => new NatsConnection(NatsOpts.Default with
+        (_, _) => new NatsConnection(NatsOpts.Default with
         {
             Url = builder.Configuration.GetConnectionString("NatQueue")!,
             SerializerRegistry = TgsNatsSerializerRegistration.Default
@@ -119,18 +120,27 @@ builder.Services
         .AddOtlpExporter())
     .Services
     .Configure<AspNetCoreTraceInstrumentationOptions>(options => options.Filter =
-        httpContext => !httpContext.Request.Path.HasValue
-            || !httpContext.Request.Path.StartsWithSegments("/swagger")
-            && !httpContext.Request.Path.StartsWithSegments("/healthz")
-            && !httpContext.Request.Path.StartsWithSegments("/metrics")
-            && !httpContext.Request.Path.StartsWithSegments("/profiler/")
-            && !new List<string> { "html", "ico", "png", "jpg" }.Exists(
-                ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
+        httpContext => {
+            var path = httpContext.Request.Path;
+            if (!path.HasValue)
+            {
+                return true;
+            } 
+  
+            var excludedPaths = new List<string> { "/swagger", "/healthz", "/metrics", "/profiler/" };
+            if (excludedPaths.Exists(segment => path.StartsWithSegments(segment)))
+            {
+                return false;
+            }
+
+            var excludedExtensions = new List<string> { "html", "ico", "png", "jpg" };
+            return !excludedExtensions.Exists(ext => path.Value.EndsWith($".{ext}"));
+        });
 
 var app = builder.Build();
 app.UseCors("AllowAll");
 app.UsePathBase($"{builder.Configuration.GetValue<string>("PathBase")}");
-app.UseWhen(context => !(context.Request.Path.StartsWithSegments("/healthz") && context.Response.StatusCode == 200), app => app.UseHttpLogging());
+app.UseWhen(context => !(context.Request.Path.StartsWithSegments("/healthz") && context.Response.StatusCode == ((int)HttpStatusCode.OK)), app => app.UseHttpLogging());
 app.MapControllers();
 app.MapHealthChecks("/healthz");
 app.MapProfileViewer();
@@ -150,5 +160,5 @@ app.Use(async (context, next) =>
     }
 });
 
-SentrySdk.CaptureMessage($"Started result SpeedPay-Payment at {DateTime.Now} at {Environment.MachineName}");
+SentrySdk.CaptureMessage($"Started result SpeedPay-Payment at {DateTimeOffset.Now} at {Environment.MachineName}");
 await app.RunAsync();
