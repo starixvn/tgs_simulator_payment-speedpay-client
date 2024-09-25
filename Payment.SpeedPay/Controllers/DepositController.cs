@@ -1,12 +1,9 @@
-﻿using System.Net;
-using System.Net.Mime;
+﻿using System.Net.Mime;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
-using Tgs.Logging;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
 

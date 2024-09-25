@@ -13,6 +13,8 @@ public class SpeedPayClient(
     ITgsLog tgsLog,
     ILogger<SpeedPayClient> logger)
 {
+    private const string MERCHANT_NO = "merchantNo";
+    private const string VERSION = "version";
 
     public async ValueTask<JsonNode> DepositAsync(Dictionary<string, string> content, SpeedPayDepositSettings settings, CancellationToken cancellationToken = default)
     {
@@ -76,17 +78,17 @@ public class SpeedPayClient(
         var requestValue = hasher.EncodeBase64(JsonSerializer.Serialize(paramDetails));
         var hashContent = new Dictionary<string, string>
         {
-            { "merchantNo", generalRequest.MerchantNo },
-            { "version", generalRequest.Version},
+            { MERCHANT_NO, generalRequest.MerchantNo },
+            { VERSION, generalRequest.Version},
             { "request", requestValue},
             { "key", key}
         };
-        var sign = hasher.ProduceSign(hashContent, ["merchantNo", "request", "version", "key"]);
+        var sign = hasher.ProduceSign(hashContent, [MERCHANT_NO, "request", VERSION, "key"]);
 
         return new Dictionary<string, string>
         {
-            {"merchantNo", generalRequest.MerchantNo },
-            { "version", generalRequest.Version},
+            {MERCHANT_NO, generalRequest.MerchantNo },
+            { VERSION, generalRequest.Version},
             { "request", requestValue },
             { "signMsg", sign }
         };
@@ -101,7 +103,7 @@ public class SpeedPayClient(
 
         logger.LogInformation("SpeedPay Body:{Body}", paramResponse);
 
-        var sign = hasher.ProduceSign(paramResponse, ["merchantNo", "resCode", "resMsg", "response", "version", "key"]);
+        var sign = hasher.ProduceSign(paramResponse, [MERCHANT_NO, "resCode", "resMsg", "response", VERSION, "key"]);
 
         if (sign != paramResponse["signMsg"])
             throw new ApiFailException($"Invalid signMsg real: {paramResponse["resMsg"]}, compute: {sign}");

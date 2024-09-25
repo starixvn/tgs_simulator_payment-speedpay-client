@@ -1,11 +1,9 @@
 ﻿using System.Net.Mime;
-using System.Net.WebSockets;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Payment.SpeedPay.ApplicationServices;
 using Payment.SpeedPay.Client;
 using Payment.SpeedPay.ViewModels;
-using Tgs.Logging.Extensions;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
 
@@ -25,14 +23,26 @@ public class WithdrawController(ILogger<WithdrawController> logger, TgsLogHandle
         [FromForm] NotifyViewModel source)
     {
         var content = notifyHandler.ProduceCallbackViewModel(source);
-        var response = await HandleWithdrawalRequestAsync(logger, getService, paymentServiceClient, paymentClient, notifyHandler, source, content).ConfigureAwait(false);
+        var response = await HandleWithdrawalRequestAsync(
+            getService, 
+            paymentServiceClient, 
+            paymentClient, 
+            notifyHandler, 
+            source, 
+            content).ConfigureAwait(false);
 
         logHandler.LogApi(HttpContext, content, response);
 
         return Ok(response);
     }
 
-    private async Task<string> HandleWithdrawalRequestAsync(ILogger<WithdrawController> logger, IGetService<GetWithdrawFormQuery, WithdrawForm?> getService, IPaymentServiceClient paymentServiceClient, IPaymentClient paymentClient, NotifyHandler notifyHandler, NotifyViewModel source, CallbackViewModel content)
+    private async Task<string> HandleWithdrawalRequestAsync(
+        IGetService<GetWithdrawFormQuery, WithdrawForm?> getService, 
+        IPaymentServiceClient paymentServiceClient, 
+        IPaymentClient paymentClient, 
+        NotifyHandler notifyHandler, 
+        NotifyViewModel source, 
+        CallbackViewModel content)
     {
         var formId = Guid.Parse(content.OrderNo);
         var withdrawForm = await getService

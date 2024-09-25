@@ -1,8 +1,7 @@
 ﻿using System.Text.Json;
-using Tgs.Payment.Clients;
 using Payment.SpeedPay.Client;
+using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
-using System.Net.WebSockets;
 
 namespace Payment.SpeedPay.ApplicationServices;
 
