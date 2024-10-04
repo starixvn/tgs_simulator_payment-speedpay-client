@@ -45,14 +45,26 @@ builder.Services
     .AddSingleton<TgsLogHandler>()
     .AddSpeedPay(
         options => builder.Configuration.GetSection("SpeedPay").Bind(options),
-        clientBuilder => clientBuilder
-            .ConfigureHttpClient((sp, http) =>
-            {
-                var options = sp.GetRequiredService<IOptions<SpeedPayOptions>>().Value;
+           clientBuilder =>
+           {
+               _ = clientBuilder.ConfigureHttpClient((sp, http) =>
+               {
+                   var options = sp.GetRequiredService<IOptions<SpeedPayOptions>>().Value;
 
-                http.BaseAddress = options.PaymentApiUrl;
-            })
-            .AddLoggingHandler<SpeedPayOptions>())
+                   http.BaseAddress = options.PaymentApiUrl;
+               })
+               .AddLoggingHandler<SpeedPayOptions>();
+
+               var proxy = builder.Configuration.GetValue<string>("Proxy");
+
+               if (proxy != null)
+               {
+                   _ = clientBuilder.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                   {
+                       Proxy = new WebProxy(proxy)
+                   });
+               }
+           })
     .AddPaymentClient()
     .AddPaymentServiceClient(httpBuilder => httpBuilder
         .ConfigureHttpClient((sp, http) =>
